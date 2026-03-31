@@ -32,12 +32,9 @@ export async function POST(req: NextRequest) {
 
   const { tenantSlug, name, email, phone, propertyAddress, description, category, inspectionRequired, photoUrl, password } = body;
 
-  if (!tenantSlug || !name || !email || !phone || !propertyAddress || !description || !password) {
+  // Required fields (password is NOT required here — see below)
+  if (!tenantSlug || !name || !email || !phone || !propertyAddress || !description) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
-  }
-
-  if (typeof password !== "string" || password.length < 8) {
-    return NextResponse.json({ error: "Password must be at least 8 characters" }, { status: 400 });
   }
 
   // Validate email
@@ -48,6 +45,17 @@ export async function POST(req: NextRequest) {
   // Look up tenant by slug
   const tenant = await findRow("Tenants", (r) => r.slug === tenantSlug);
   if (!tenant) return NextResponse.json({ error: "Company not found" }, { status: 404 });
+
+  // Check if client already exists — BEFORE requiring password
+  // Returning clients and logged-in clients don't need to send a password
+  const existingClient = await findRow("Users", (r) => r.email === email && r.tenantId === tenant.id);
+
+  // Only require password for brand-new clients
+  if (!existingClient) {
+    if (!password || typeof password !== "string" || password.length < 8) {
+      return NextResponse.json({ error: "Password must be at least 8 characters" }, { status: 400 });
+    }
+  }
 
   // Generate job number
   const existingJobs = await findRows("Jobs", (r) => r.tenantId === tenant.id);
@@ -89,17 +97,19 @@ export async function POST(req: NextRequest) {
     threadId: thread.id,
     senderId: "",
     senderName: "System",
+    senderRole: "",
     type: "system",
     content: `Job request submitted by ${name} (${email} · ${phone})`,
     metadata: "",
   });
 
-  // Client's first message
+  // Client's first message (description as opening message)
   await appendRow("Messages", {
     tenantId: tenant.id,
     threadId: thread.id,
-    senderId: "",
+    senderId: existingClient?.id ?? "",
     senderName: name,
+    senderRole: "client",
     type: "text",
     content: description,
     metadata: "",
@@ -117,11 +127,9 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  // Create client account if none exists, or update password if returning client
-  const existingClient = await findRow("Users", (r) => r.email === email && r.tenantId === tenant.id);
-  const passwordHash = await bcrypt.hash(password, 10);
-
+  // Create client account if new
   if (!existingClient) {
+    const passwordHash = await bcrypt.hash(password, 10);
     await appendRow("Users", {
       tenantId: tenant.id,
       name,
@@ -132,8 +140,7 @@ export async function POST(req: NextRequest) {
       isActive: "true",
     });
   }
-  // Note: if the client already exists we leave their existing password intact —
-  // they chose it themselves and may have changed it since.
+  // Existing clients keep their password untouched
 
   return NextResponse.json(
     { jobId: job.id, jobNumber, tenantSlug, clientEmail: email },

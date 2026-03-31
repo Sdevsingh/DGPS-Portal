@@ -10,6 +10,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showForgot, setShowForgot] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -108,7 +109,16 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1.5">Password</label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-sm font-medium text-gray-300">Password</label>
+                <button
+                  type="button"
+                  onClick={() => setShowForgot((v) => !v)}
+                  className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                >
+                  Forgot password?
+                </button>
+              </div>
               <input
                 type="password"
                 value={password}
@@ -118,6 +128,20 @@ export default function LoginPage() {
                 placeholder="••••••••"
               />
             </div>
+
+            {showForgot && (
+              <div className="p-4 bg-blue-600/10 border border-blue-500/30 rounded-xl">
+                <p className="text-sm font-semibold text-blue-300 mb-1">Reset your password</p>
+                <p className="text-xs text-gray-400 leading-relaxed">
+                  Contact us and we&apos;ll reset your access manually:
+                </p>
+                <div className="mt-2 space-y-1 text-xs text-blue-300">
+                  <p>📍 Unit 7, 1 Leader Street, Truganina VIC 3029</p>
+                  <p>🌐 dgps.com.au</p>
+                  <p>🕐 Available 24/7</p>
+                </div>
+              </div>
+            )}
 
             <button
               type="submit"

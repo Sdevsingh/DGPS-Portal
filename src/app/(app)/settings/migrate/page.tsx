@@ -3,6 +3,13 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 
+type ClearResult = {
+  status: string;
+  clearedMessages: number;
+  clearedThreads: number;
+  note: string;
+};
+
 type TabResult = {
   updated: boolean;
   addedColumns: string[];
@@ -19,6 +26,35 @@ export default function MigratePage() {
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<MigrateResult | null>(null);
   const [error, setError] = useState("");
+
+  const [clearConfirm, setClearConfirm] = useState(false);
+  const [clearing, setClearing] = useState(false);
+  const [clearResult, setClearResult] = useState<ClearResult | null>(null);
+  const [clearError, setClearError] = useState("");
+
+  async function clearChats() {
+    if (!clearConfirm) {
+      setClearConfirm(true);
+      return;
+    }
+    setClearing(true);
+    setClearError("");
+    setClearResult(null);
+    try {
+      const res = await fetch("/api/admin/clear-chats", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        setClearError(data.error ?? "Clear failed");
+        return;
+      }
+      setClearResult(data);
+      setClearConfirm(false);
+    } catch {
+      setClearError("Network error");
+    } finally {
+      setClearing(false);
+    }
+  }
 
   async function runMigration() {
     setRunning(true);
@@ -141,6 +177,58 @@ export default function MigratePage() {
           )}
         </div>
       )}
+
+      {/* ── Danger Zone ── */}
+      <div className="border border-red-200 rounded-xl overflow-hidden">
+        <div className="bg-red-50 px-4 py-3 border-b border-red-200">
+          <p className="text-sm font-semibold text-red-700">Danger Zone</p>
+        </div>
+        <div className="p-4 space-y-3">
+          <div>
+            <p className="text-sm font-medium text-gray-900">Clear All Chat Messages</p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Deletes all rows in the Messages and ChatThreads tabs. Use this to reset chat data for testing.
+              Run <code className="bg-gray-100 px-1 rounded">npm run sheets:seed</code> afterwards to restore demo data.
+            </p>
+          </div>
+
+          {clearConfirm && !clearing && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+              This will permanently delete all chat messages and threads. Click again to confirm.
+            </div>
+          )}
+
+          {clearError && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">{clearError}</div>
+          )}
+
+          {clearResult && (
+            <div className="p-3 bg-green-50 border border-green-200 rounded-xl text-sm text-green-700">
+              ✅ Cleared {clearResult.clearedMessages} messages and {clearResult.clearedThreads} threads.
+            </div>
+          )}
+
+          <div className="flex items-center gap-3">
+            <Button
+              variant="danger"
+              size="sm"
+              loading={clearing}
+              onClick={clearChats}
+            >
+              {clearConfirm && !clearing ? "⚠️ Confirm — Delete All Chats" : "Clear All Chat Messages"}
+            </Button>
+            {clearConfirm && !clearing && (
+              <button
+                type="button"
+                onClick={() => setClearConfirm(false)}
+                className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                Cancel
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
