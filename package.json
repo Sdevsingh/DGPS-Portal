@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "sheets:seed": "tsx --env-file=.env src/lib/sheets-seed.ts"
+    "sheets:seed": "tsx --env-file=.env src/lib/sheets-seed.ts",
+    "test:chat": "tsx --env-file=.env scripts/test-chat-persistence.ts"
   },
   "dependencies": {
     "@types/bcryptjs": "^2.4.6",
