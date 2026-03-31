@@ -17,6 +17,7 @@ export default function MobileNav() {
     { href: "/technician", label: "Field Jobs", roles: ["technician"] },
     { href: "/companies", label: "Companies", roles: ["super_admin"] },
     { href: "/reports", label: "Reports", roles: ["super_admin", "operations_manager"] },
+    { href: "/settings/users", label: "Users", roles: ["super_admin", "operations_manager"] },
   ].filter((item) => !item.roles || item.roles.includes(role || ""));
 
   return (

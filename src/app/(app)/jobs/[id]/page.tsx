@@ -6,6 +6,7 @@ import Link from "next/link";
 import ChatPanel from "@/components/chat/ChatPanel";
 import JobActions from "@/components/jobs/JobActions";
 import QuotePanel from "@/components/jobs/QuotePanel";
+import AssignTechnician from "@/components/jobs/AssignTechnician";
 
 const STATUS_STYLE: Record<string, string> = {
   new: "bg-blue-100 text-blue-700",
@@ -137,6 +138,16 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
             quoteItems={quoteItems}
             role={role}
           />
+
+          {/* Assign Technician — ops/admin only */}
+          {(role === "super_admin" || role === "operations_manager") && (
+            <AssignTechnician
+              jobId={job.id}
+              currentAssignedId={job.assignedToId || ""}
+              currentAssignedName={job.assignedToName || ""}
+              tenantId={role === "super_admin" ? job.tenantId : undefined}
+            />
+          )}
 
           {/* Actions */}
           <JobActions

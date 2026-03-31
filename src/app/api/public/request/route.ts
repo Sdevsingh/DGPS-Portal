@@ -30,10 +30,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true }); // silently ignore bots
   }
 
-  const { tenantSlug, name, email, phone, propertyAddress, description, category, inspectionRequired, photoUrl } = body;
+  const { tenantSlug, name, email, phone, propertyAddress, description, category, inspectionRequired, photoUrl, password } = body;
 
-  if (!tenantSlug || !name || !email || !phone || !propertyAddress || !description) {
+  if (!tenantSlug || !name || !email || !phone || !propertyAddress || !description || !password) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+  }
+
+  if (typeof password !== "string" || password.length < 8) {
+    return NextResponse.json({ error: "Password must be at least 8 characters" }, { status: 400 });
   }
 
   // Validate email
@@ -113,14 +117,11 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  // Auto-create client account if none exists
-  let clientPassword = "";
+  // Create client account if none exists, or update password if returning client
   const existingClient = await findRow("Users", (r) => r.email === email && r.tenantId === tenant.id);
+  const passwordHash = await bcrypt.hash(password, 10);
+
   if (!existingClient) {
-    // Generate readable temp password
-    const chars = "abcdefghjkmnpqrstuvwxyz23456789";
-    clientPassword = Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
-    const passwordHash = await bcrypt.hash(clientPassword, 10);
     await appendRow("Users", {
       tenantId: tenant.id,
       name,
@@ -131,9 +132,11 @@ export async function POST(req: NextRequest) {
       isActive: "true",
     });
   }
+  // Note: if the client already exists we leave their existing password intact —
+  // they chose it themselves and may have changed it since.
 
   return NextResponse.json(
-    { jobId: job.id, jobNumber, tenantSlug, clientEmail: email, clientPassword },
+    { jobId: job.id, jobNumber, tenantSlug, clientEmail: email },
     { status: 201 }
   );
 }

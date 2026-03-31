@@ -65,7 +65,7 @@ const HEADERS: Record<TabName, string[]> = {
 
 type CacheEntry = { rows: Record<string, string>[]; ts: number };
 const cache = new Map<TabName, CacheEntry>();
-const CACHE_TTL = 5 * 60_000; // 5 minutes — busted on every write
+const CACHE_TTL = 30_000; // 30 seconds — short enough to catch stale reads in prototype
 
 function bustCache(tab: TabName) {
   cache.delete(tab);
@@ -274,6 +274,81 @@ export async function deleteRows(
   });
 
   bustCache(tab);
+}
+
+// ─── Migrate a tab: rewrite header row to match HEADERS[tab] ─────────────────
+// Use this to fix schema mismatches without touching data rows.
+// After calling this, run clearTabData if existing rows are corrupted.
+
+export async function migrateTab(
+  tab: TabName
+): Promise<{ updated: boolean; addedColumns: string[]; previousHeaders: string[] }> {
+  const sheets = getSheetsClient();
+
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId: SPREADSHEET_ID,
+    range: `${tab}!1:1`,
+  });
+
+  const currentHeaders: string[] = (res.data.values?.[0] as string[]) ?? [];
+  const expectedHeaders = HEADERS[tab];
+
+  if (JSON.stringify(currentHeaders) === JSON.stringify(expectedHeaders)) {
+    return { updated: false, addedColumns: [], previousHeaders: currentHeaders };
+  }
+
+  // Rewrite row 1 with the correct header order
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: SPREADSHEET_ID,
+    range: `${tab}!A1`,
+    valueInputOption: "RAW",
+    requestBody: { values: [expectedHeaders] },
+  });
+
+  bustCache(tab);
+
+  const addedColumns = expectedHeaders.filter((h) => !currentHeaders.includes(h));
+  return { updated: true, addedColumns, previousHeaders: currentHeaders };
+}
+
+// ─── Clear all data rows from a tab (keep header row 1) ──────────────────────
+// Deletes every row after row 1 in one batchUpdate call.
+
+export async function clearTabData(tab: TabName): Promise<number> {
+  const sheets = getSheetsClient();
+
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId: SPREADSHEET_ID,
+    range: `${tab}!A:A`,
+  });
+
+  const totalRows = (res.data.values ?? []).length;
+  if (totalRows <= 1) return 0; // header only or empty
+
+  const meta = await sheets.spreadsheets.get({ spreadsheetId: SPREADSHEET_ID });
+  const sheet = meta.data.sheets?.find((s) => s.properties?.title === tab);
+  const sheetId = sheet?.properties?.sheetId ?? 0;
+
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId: SPREADSHEET_ID,
+    requestBody: {
+      requests: [
+        {
+          deleteDimension: {
+            range: {
+              sheetId,
+              dimension: "ROWS",
+              startIndex: 1,      // 0-indexed: row 2 onwards
+              endIndex: totalRows, // exclusive end
+            },
+          },
+        },
+      ],
+    },
+  });
+
+  bustCache(tab);
+  return totalRows - 1; // number of data rows deleted
 }
 
 // ─── Export headers for seed use ─────────────────────────────────────────────

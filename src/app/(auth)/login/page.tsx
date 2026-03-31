@@ -149,6 +149,18 @@ export default function LoginPage() {
               ))}
             </div>
           </div>
+
+          <div className="mt-6 text-center">
+            <p className="text-xs text-gray-600">
+              New client?{" "}
+              <a
+                href="/request/dgps"
+                className="text-blue-400 hover:text-blue-300 font-medium transition-colors"
+              >
+                Submit a job request →
+              </a>
+            </p>
+          </div>
         </div>
       </div>
     </div>
