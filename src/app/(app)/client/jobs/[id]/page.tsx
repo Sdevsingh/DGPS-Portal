@@ -5,6 +5,7 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import ChatPanel from "@/components/chat/ChatPanel";
 import QuoteApproveActions from "@/components/jobs/QuoteApproveActions";
+import { ensureChatThreadForJob } from "@/lib/chat";
 
 const STEPS = ["new", "ready", "in_progress", "completed", "invoiced", "paid"];
 const STEP_LABELS = ["Submitted", "Ready", "In Progress", "Completed", "Invoiced", "Paid"];
@@ -16,7 +17,7 @@ export default async function ClientJobDetailPage({ params }: { params: Promise<
 
   const { id } = await params;
 
-  const [job, thread, quoteItems] = await Promise.all([
+  const [job, existingThread, quoteItems] = await Promise.all([
     findRow("Jobs", (r) => r.id === id),
     findRow("ChatThreads", (r) => r.jobId === id),
     findRows("QuoteItems", (r) => r.jobId === id),
@@ -26,6 +27,8 @@ export default async function ClientJobDetailPage({ params }: { params: Promise<
 
   // Security: clients can only see their own jobs within their tenant
   if (job.agentEmail !== session.user.email || job.tenantId !== session.user.tenantId) notFound();
+
+  const thread = existingThread ?? await ensureChatThreadForJob(job.id, job.tenantId);
 
   const messages = thread
     ? await findRows("Messages", (r) => r.threadId === thread.id)
@@ -201,7 +204,7 @@ export default async function ClientJobDetailPage({ params }: { params: Promise<
                   content: m.content,
                   createdAt: m.createdAt,
                   sender: m.senderId
-                    ? { id: m.senderId, name: m.senderName, role: (m as any).senderRole ?? "" }
+                    ? { id: m.senderId, name: m.senderName, role: m.senderRole ?? "" }
                     : null,
                 }))}
               />
