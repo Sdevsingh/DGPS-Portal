@@ -103,7 +103,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
                 {job.priority}
               </span>
             </DetailRow>
-            <DetailRow label="Source" value={job.source || "—"} />
+            <DetailRow label="Source" value={job.source ? job.source.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "—"} />
             <DetailRow label="Agent" value={job.agentName || "—"} />
             <DetailRow label="Contact" value={job.agentContact || "—"} />
             {job.assignedToName && (

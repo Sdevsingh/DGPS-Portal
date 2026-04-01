@@ -8,12 +8,27 @@ export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { role } = session.user;
-  if (role !== "super_admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const { role, tenantId } = session.user;
 
+  // Super admins can see all users (optionally filtered by tenantId query param)
+  // Ops managers can only see users within their own tenant
+  if (role !== "super_admin" && role !== "operations_manager") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const requestedTenantId = req.nextUrl.searchParams.get("tenantId");
   const users = await getRows("Users");
+
+  const filtered = users.filter((u) => {
+    if (role === "super_admin") {
+      return requestedTenantId ? u.tenantId === requestedTenantId : true;
+    }
+    // Ops managers can only see their own tenant
+    return u.tenantId === tenantId;
+  });
+
   // Never return password hashes to the client
-  return NextResponse.json(users.map(({ passwordHash: _, ...u }) => u));
+  return NextResponse.json(filtered.map(({ passwordHash: _, ...u }) => u));
 }
 
 export async function POST(req: NextRequest) {

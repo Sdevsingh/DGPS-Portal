@@ -56,7 +56,7 @@ export default function MobileNav() {
                 </div>
                 <div>
                   <p className="text-white font-bold text-sm">Domain Group</p>
-                  <p className="text-gray-500 text-xs">{session?.user?.tenantName || "Operations"}</p>
+                  <p className="text-gray-500 text-xs">{role === "super_admin" ? "Global overview" : (session?.user?.tenantName || "Operations")}</p>
                 </div>
               </div>
               <button onClick={() => setOpen(false)} className="text-gray-500 hover:text-white">

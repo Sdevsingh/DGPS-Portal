@@ -60,7 +60,7 @@ export default function JobFilters() {
   return (
     <div className="flex items-center gap-2 mb-5 overflow-x-auto pb-1 -mx-4 px-4 md:mx-0 md:px-0 md:flex-wrap">
       {/* Job Status */}
-      <div className="relative">
+      <div className="relative shrink-0">
         <select value={status} onChange={(e) => handleSelect("status", e.target.value)} className={selectCls(!!status)}>
           {JOB_STATUS_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>{o.label}</option>
@@ -74,7 +74,7 @@ export default function JobFilters() {
       </div>
 
       {/* Quote Status */}
-      <div className="relative">
+      <div className="relative shrink-0">
         <select value={quoteStatus} onChange={(e) => handleSelect("quoteStatus", e.target.value)} className={selectCls(!!quoteStatus)}>
           {QUOTE_STATUS_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>{o.label}</option>
@@ -88,7 +88,7 @@ export default function JobFilters() {
       </div>
 
       {/* Priority */}
-      <div className="relative">
+      <div className="relative shrink-0">
         <select value={priority} onChange={(e) => handleSelect("priority", e.target.value)} className={selectCls(!!priority)}>
           {PRIORITY_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>{o.label}</option>
@@ -104,7 +104,7 @@ export default function JobFilters() {
       {/* Inspection toggle pill */}
       <button
         onClick={() => handleSelect("inspectionRequired", inspectionRequired === "true" ? "" : "true")}
-        className={`px-3 py-2 text-sm rounded-xl border font-medium transition-all ${
+        className={`shrink-0 px-3 py-2 text-sm rounded-xl border font-medium transition-all ${
           inspectionRequired === "true"
             ? "bg-purple-600 text-white border-purple-600"
             : "bg-white border-gray-200 text-gray-700 hover:border-purple-300"
@@ -116,7 +116,7 @@ export default function JobFilters() {
       {/* Unpaid toggle pill */}
       <button
         onClick={() => handleSelect("paymentStatus", paymentStatus === "unpaid" ? "" : "unpaid")}
-        className={`px-3 py-2 text-sm rounded-xl border font-medium transition-all ${
+        className={`shrink-0 px-3 py-2 text-sm rounded-xl border font-medium transition-all ${
           paymentStatus === "unpaid"
             ? "bg-orange-500 text-white border-orange-500"
             : "bg-white border-gray-200 text-gray-700 hover:border-orange-300"

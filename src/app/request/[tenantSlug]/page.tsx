@@ -259,7 +259,7 @@ function PhoneField({ countryCode, phoneNumber, onCountryChange, onNumberChange 
         <select
           value={countryCode}
           onChange={(e) => onCountryChange(e.target.value)}
-          className="w-32 px-3 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white appearance-none cursor-pointer"
+          className="w-32 px-3 py-3 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white appearance-none cursor-pointer text-gray-900"
         >
           {COUNTRY_CODES.map((c) => (
             <option key={c.code} value={c.code}>{c.label}</option>
@@ -296,7 +296,7 @@ const CATEGORIES = [
 
 // ─── Shared field styles ──────────────────────────────────────────────────────
 
-const inputCls = "w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-400 transition-all placeholder:text-gray-300 bg-white";
+const inputCls = "w-full px-4 py-3 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-400 transition-all placeholder:text-gray-400 bg-white text-gray-900";
 const labelCls = "block text-sm font-medium text-gray-700 mb-1.5";
 
 // ─── Toggle switch ────────────────────────────────────────────────────────────
