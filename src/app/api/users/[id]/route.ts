@@ -7,17 +7,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { role, tenantId } = session.user;
-  if (role !== "super_admin" && role !== "operations_manager") {
+  const { role } = session.user;
+  if (role !== "super_admin") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const { id } = await params;
   const user = await findRow("Users", (r) => r.id === id);
   if (!user) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  if (role !== "super_admin" && user.tenantId !== tenantId) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
 
   const body = await req.json();
   const allowed = ["name", "phone", "isActive", "role"];

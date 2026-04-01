@@ -11,6 +11,9 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showForgot, setShowForgot] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotSent, setForgotSent] = useState(false);
+  const [forgotLoading, setForgotLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -32,6 +35,18 @@ export default function LoginPage() {
         router.push("/dashboard");
       }
     }
+  }
+
+  async function handleForgot(e: React.FormEvent) {
+    e.preventDefault();
+    setForgotLoading(true);
+    await fetch("/api/auth/forgot-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: forgotEmail }),
+    });
+    setForgotLoading(false);
+    setForgotSent(true);
   }
 
   return (
@@ -132,14 +147,29 @@ export default function LoginPage() {
             {showForgot && (
               <div className="p-4 bg-blue-600/10 border border-blue-500/30 rounded-xl">
                 <p className="text-sm font-semibold text-blue-300 mb-1">Reset your password</p>
-                <p className="text-xs text-gray-400 leading-relaxed">
-                  Contact us and we&apos;ll reset your access manually:
-                </p>
-                <div className="mt-2 space-y-1 text-xs text-blue-300">
-                  <p>📍 Unit 7, 1 Leader Street, Truganina VIC 3029</p>
-                  <p>🌐 dgps.com.au</p>
-                  <p>🕐 Available 24/7</p>
-                </div>
+                {forgotSent ? (
+                  <p className="text-xs text-green-400 leading-relaxed">
+                    If that email is registered, you&apos;ll receive a reset link shortly. Check your inbox.
+                  </p>
+                ) : (
+                  <form onSubmit={handleForgot} className="mt-2 space-y-2">
+                    <input
+                      type="email"
+                      required
+                      placeholder="your@email.com"
+                      value={forgotEmail}
+                      onChange={(e) => setForgotEmail(e.target.value)}
+                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+                    />
+                    <button
+                      type="submit"
+                      disabled={forgotLoading}
+                      className="w-full py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-semibold rounded-lg transition-colors"
+                    >
+                      {forgotLoading ? "Sending…" : "Send reset link"}
+                    </button>
+                  </form>
+                )}
               </div>
             )}
 

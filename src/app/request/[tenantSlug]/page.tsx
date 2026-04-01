@@ -457,8 +457,22 @@ export default function PublicRequestPage() {
   const [result, setResult] = useState<SuccessResult | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [form, dispatch] = useReducer(formReducer, INITIAL_FORM);
+  const [slugValid, setSlugValid] = useState<boolean | null>(null);
 
   const set = useCallback((field: keyof FormState, value: string | boolean) => dispatch({ field, value }), []);
+
+  // Validate tenantSlug exists
+  useEffect(() => {
+    async function checkSlug() {
+      try {
+        const res = await fetch(`/api/public/check-tenant?slug=${encodeURIComponent(tenantSlug)}`);
+        setSlugValid(res.ok);
+      } catch {
+        setSlugValid(false);
+      }
+    }
+    checkSlug();
+  }, [tenantSlug]);
 
   // Pre-fill from session when it loads
   useEffect(() => {
@@ -552,6 +566,32 @@ export default function PublicRequestPage() {
   }
 
   // ─── Success ──────────────────────────────────────────────────────────────
+
+  if (slugValid === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (slugValid === false) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+        <div className="text-center max-w-sm">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+            </svg>
+          </div>
+          <h1 className="text-xl font-bold text-gray-900">Company not found</h1>
+          <p className="text-sm text-gray-500 mt-2">
+            This link is invalid or the company no longer exists. Please check the URL or contact the company directly.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (pageStep === "success" && result) {
     return (

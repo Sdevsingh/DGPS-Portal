@@ -10,6 +10,11 @@ type ClearResult = {
   note: string;
 };
 
+type ReseedResult = {
+  status: string;
+  note: string;
+};
+
 type TabResult = {
   updated: boolean;
   addedColumns: string[];
@@ -31,6 +36,35 @@ export default function MigratePage() {
   const [clearing, setClearing] = useState(false);
   const [clearResult, setClearResult] = useState<ClearResult | null>(null);
   const [clearError, setClearError] = useState("");
+
+  const [reseedConfirm, setReseedConfirm] = useState(false);
+  const [reseeding, setReseeding] = useState(false);
+  const [reseedResult, setReseedResult] = useState<ReseedResult | null>(null);
+  const [reseedError, setReseedError] = useState("");
+
+  async function reseedAll() {
+    if (!reseedConfirm) {
+      setReseedConfirm(true);
+      return;
+    }
+    setReseeding(true);
+    setReseedError("");
+    setReseedResult(null);
+    try {
+      const res = await fetch("/api/admin/reseed", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        setReseedError(data.error ?? "Reseed failed");
+        return;
+      }
+      setReseedResult(data);
+      setReseedConfirm(false);
+    } catch {
+      setReseedError("Network error");
+    } finally {
+      setReseeding(false);
+    }
+  }
 
   async function clearChats() {
     if (!clearConfirm) {
@@ -98,7 +132,7 @@ export default function MigratePage() {
           <p className="text-sm font-semibold text-amber-800">Messages tab: corrupted rows will be cleared</p>
           <p className="text-xs text-amber-700 mt-0.5">
             If the Messages schema is out of sync, all existing chat messages will be deleted — they contain garbled data and cannot be repaired.
-            Re-run <code className="bg-amber-100 px-1 rounded">npm run sheets:seed</code> afterwards to restore demo data.
+            Use <strong>Full Reset &amp; Reseed</strong> below to restore demo data afterwards.
           </p>
         </div>
       </div>
@@ -172,8 +206,10 @@ export default function MigratePage() {
             </table>
           </div>
 
-          {result.note && (
-            <p className="text-xs text-gray-400 text-center">{result.note}</p>
+          {anyUpdated && (
+            <p className="text-xs text-gray-400 text-center">
+              If chat messages were cleared, use <strong>Full Reset &amp; Reseed</strong> below to restore demo data.
+            </p>
           )}
         </div>
       )}
@@ -187,8 +223,8 @@ export default function MigratePage() {
           <div>
             <p className="text-sm font-medium text-gray-900">Clear All Chat Messages</p>
             <p className="text-xs text-gray-500 mt-0.5">
-              Deletes all rows in the Messages and ChatThreads tabs. Use this to reset chat data for testing.
-              Run <code className="bg-gray-100 px-1 rounded">npm run sheets:seed</code> afterwards to restore demo data.
+              Deletes all rows in the Messages and ChatThreads tabs. Use this to reset chat data.
+              Use <strong>Full Reset &amp; Reseed</strong> below to restore demo data afterwards.
             </p>
           </div>
 
@@ -221,6 +257,52 @@ export default function MigratePage() {
               <button
                 type="button"
                 onClick={() => setClearConfirm(false)}
+                className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                Cancel
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="border-t border-red-200 p-4 space-y-3">
+          <div>
+            <p className="text-sm font-medium text-gray-900">Full Reset &amp; Reseed</p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Clears ALL tabs (Messages, ChatThreads, Jobs, QuoteItems, Users, Tenants, Attachments, Inspections)
+              and restores the original demo data. Use this to fix duplicate records from running seed multiple times.
+            </p>
+          </div>
+
+          {reseedConfirm && !reseeding && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+              This will delete ALL data across all tabs and restore demo data. Click again to confirm.
+            </div>
+          )}
+
+          {reseedError && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">{reseedError}</div>
+          )}
+
+          {reseedResult && (
+            <div className="p-3 bg-green-50 border border-green-200 rounded-xl text-sm text-green-700">
+              ✅ All tabs cleared and reseeded with demo data.
+            </div>
+          )}
+
+          <div className="flex items-center gap-3">
+            <Button
+              variant="danger"
+              size="sm"
+              loading={reseeding}
+              onClick={reseedAll}
+            >
+              {reseedConfirm && !reseeding ? "⚠️ Confirm — Full Reset & Reseed" : "Full Reset & Reseed"}
+            </Button>
+            {reseedConfirm && !reseeding && (
+              <button
+                type="button"
+                onClick={() => setReseedConfirm(false)}
                 className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
               >
                 Cancel

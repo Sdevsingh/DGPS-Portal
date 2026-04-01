@@ -16,7 +16,15 @@ export default async function CompaniesPage() {
     getRows("Users"),
   ]);
 
-  const tenantsWithStats = tenants
+  // Deduplicate tenants by id (running seed multiple times creates duplicates)
+  const seenIds = new Set<string>();
+  const uniqueTenants = tenants.filter((t) => {
+    if (seenIds.has(t.id)) return false;
+    seenIds.add(t.id);
+    return true;
+  });
+
+  const tenantsWithStats = uniqueTenants
     .map((t) => ({
       ...t,
       jobCount: allJobs.filter((j) => j.tenantId === t.id).length,
@@ -41,7 +49,7 @@ export default async function CompaniesPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Companies</h1>
-          <p className="text-gray-500 text-sm mt-0.5">{tenants.length} tenants on the platform</p>
+          <p className="text-gray-500 text-sm mt-0.5">{uniqueTenants.length} tenants on the platform</p>
         </div>
         <CreateCompanyButton />
       </div>

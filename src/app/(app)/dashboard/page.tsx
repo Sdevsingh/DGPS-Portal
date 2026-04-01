@@ -1,17 +1,138 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { getRows, findRows } from "@/lib/sheets";
+import { getRows } from "@/lib/sheets";
 import Link from "next/link";
 
-function StatCard({ label, value, color, href }: { label: string; value: number; color: string; href?: string }) {
-  const card = (
-    <div className="bg-white rounded-2xl border border-gray-200 p-5 hover:shadow-md transition-shadow">
-      <p className="text-sm text-gray-500 mb-1">{label}</p>
-      <p className={`text-4xl font-bold ${color}`}>{value}</p>
+// ─── Icons ────────────────────────────────────────────────────────────────────
+
+function IconBriefcase() {
+  return (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+    </svg>
+  );
+}
+function IconSpark() {
+  return (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M12 3v1m0 16v1m8.66-10H21M3 12H2m15.364-7.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.343l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+    </svg>
+  );
+}
+function IconClock() {
+  return (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  );
+}
+function IconCheck() {
+  return (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  );
+}
+function IconChat() {
+  return (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+    </svg>
+  );
+}
+function IconChevron() {
+  return (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+    </svg>
+  );
+}
+function IconPlus() {
+  return (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+    </svg>
+  );
+}
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+function MetricCard({
+  label,
+  value,
+  icon,
+  accent,
+  href,
+}: {
+  label: string;
+  value: number;
+  icon: React.ReactNode;
+  accent: string;
+  href?: string;
+}) {
+  const inner = (
+    <div className={`bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition-all group relative overflow-hidden`}>
+      {/* Accent bar */}
+      <div className={`absolute top-0 left-0 right-0 h-0.5 ${accent}`} />
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">{label}</p>
+          <p className="text-3xl font-bold text-gray-900 leading-none">{value}</p>
+        </div>
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center bg-gray-50 text-gray-400 group-hover:scale-110 transition-transform`}>
+          {icon}
+        </div>
+      </div>
+      {href && (
+        <div className="mt-3 flex items-center gap-1 text-xs text-gray-400 group-hover:text-gray-600 transition-colors">
+          <span>View all</span>
+          <IconChevron />
+        </div>
+      )}
     </div>
   );
-  return href ? <Link href={href}>{card}</Link> : card;
+  return href ? <Link href={href}>{inner}</Link> : inner;
 }
+
+function AlertCard({
+  label,
+  value,
+  color,
+  bg,
+  border,
+  text,
+  href,
+}: {
+  label: string;
+  value: number;
+  color: string;
+  bg: string;
+  border: string;
+  text: string;
+  href: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className={`${bg} border ${border} rounded-2xl p-4 flex items-center justify-between group hover:shadow-md transition-all`}
+    >
+      <div className="flex items-center gap-3">
+        <div className={`w-9 h-9 rounded-xl ${bg} border ${border} flex items-center justify-center`}>
+          <span className={`w-2.5 h-2.5 rounded-full ${color}`} />
+        </div>
+        <div>
+          <p className={`text-xs font-semibold uppercase tracking-wider ${text} opacity-70`}>{label}</p>
+          <p className={`text-2xl font-bold ${text} leading-tight`}>{value}</p>
+        </div>
+      </div>
+      <div className={`${text} opacity-30 group-hover:opacity-70 transition-opacity`}>
+        <IconChevron />
+      </div>
+    </Link>
+  );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
@@ -34,35 +155,36 @@ export default async function DashboardPage() {
   const inProgressJobs = jobs.filter((j) => j.jobStatus === "in_progress").length;
   const completedJobs = jobs.filter((j) => j.jobStatus === "completed").length;
   const pendingQuotes = jobs.filter((j) => j.quoteStatus === "pending").length;
-  const approvedJobs = jobs.filter((j) => j.quoteStatus === "approved").length;
   const needsTeamResponse = threads.filter((t) => t.pendingOn === "team").length;
   const needsClientResponse = threads.filter((t) => t.pendingOn === "client").length;
   const overdueChats = threads.filter((t) => t.pendingOn !== "none" && t.responseDueTime && new Date(t.responseDueTime) < now).length;
 
-  // Recent jobs (last 5)
+  const totalAttention = needsTeamResponse + needsClientResponse + overdueChats;
+
   const recentJobs = [...jobs]
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 5);
+    .slice(0, 6);
 
   const threadMap = new Map(allThreads.map((t) => [t.jobId, t]));
 
-  // Per-company breakdown for super admin
-  let companyStats: { name: string; count: number }[] = [];
+  let companyStats: { id: string; name: string; count: number }[] = [];
   if (role === "super_admin") {
     const tenants = await getRows("Tenants");
-    companyStats = tenants.map((t) => ({
-      name: t.name,
-      count: allJobs.filter((j) => j.tenantId === t.id).length,
-    })).sort((a, b) => b.count - a.count);
+    companyStats = tenants
+      .map((t) => ({
+        id: t.id,
+        name: t.name,
+        count: allJobs.filter((j) => j.tenantId === t.id).length,
+      }))
+      .sort((a, b) => b.count - a.count);
   }
 
-  const statusColor: Record<string, string> = {
-    new: "bg-blue-100 text-blue-700",
-    ready: "bg-purple-100 text-purple-700",
-    in_progress: "bg-yellow-100 text-yellow-700",
-    completed: "bg-green-100 text-green-700",
-    invoiced: "bg-orange-100 text-orange-700",
-    paid: "bg-emerald-100 text-emerald-700",
+  const statusConfig: Record<string, { label: string; bg: string; text: string; bar: string }> = {
+    new:         { label: "New",         bg: "bg-blue-50",    text: "text-blue-700",   bar: "bg-blue-400" },
+    in_progress: { label: "In Progress", bg: "bg-yellow-50",  text: "text-yellow-700", bar: "bg-yellow-400" },
+    completed:   { label: "Completed",   bg: "bg-green-50",   text: "text-green-700",  bar: "bg-green-500" },
+    invoiced:    { label: "Invoiced",    bg: "bg-orange-50",  text: "text-orange-700", bar: "bg-orange-400" },
+    paid:        { label: "Paid",        bg: "bg-emerald-50", text: "text-emerald-700",bar: "bg-emerald-500" },
   };
 
   const priorityDot: Record<string, string> = {
@@ -71,118 +193,195 @@ export default async function DashboardPage() {
     low: "bg-green-400",
   };
 
+  // Greeting
+  const hour = now.getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+  const dateStr = now.toLocaleDateString("en-AU", { weekday: "long", day: "numeric", month: "long" });
+
   return (
-    <div className="p-6 md:p-8 max-w-7xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">
-          {role === "super_admin" ? "Global Dashboard" : "Dashboard"}
-        </h1>
-        <p className="text-gray-500 mt-0.5 text-sm">
-          {role === "super_admin" ? "All companies" : session.user.tenantName}
-        </p>
-      </div>
-
-      {/* Job stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
-        <StatCard label="Total Jobs" value={totalJobs} color="text-gray-900" href="/jobs" />
-        <StatCard label="New Jobs" value={newJobs} color="text-blue-600" href="/jobs?status=new" />
-        <StatCard label="In Progress" value={inProgressJobs} color="text-yellow-600" href="/jobs?status=in_progress" />
-        <StatCard label="Completed" value={completedJobs} color="text-green-600" href="/jobs?status=completed" />
-      </div>
-
-      {/* Chat alerts */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
-        <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
-            <p className="text-sm font-medium text-red-800">Needs Team Reply</p>
+    <div className="min-h-screen bg-gray-50">
+      {/* ── Hero header ── */}
+      <div className="bg-white border-b border-gray-100">
+        <div className="max-w-7xl mx-auto px-6 md:px-8 py-6 flex items-center justify-between gap-4">
+          <div>
+            <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-0.5">{dateStr}</p>
+            <h1 className="text-2xl font-bold text-gray-900">
+              {greeting}, {session.user.name?.split(" ")[0]} 👋
+            </h1>
+            <p className="text-sm text-gray-500 mt-0.5">
+              {role === "super_admin" ? "Global overview — all companies" : session.user.tenantName}
+            </p>
           </div>
-          <p className="text-3xl font-bold text-red-700 ml-5">{needsTeamResponse}</p>
-        </div>
-        <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-4">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="w-2.5 h-2.5 rounded-full bg-yellow-500" />
-            <p className="text-sm font-medium text-yellow-800">Awaiting Client</p>
-          </div>
-          <p className="text-3xl font-bold text-yellow-700 ml-5">{needsClientResponse}</p>
-        </div>
-        <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="w-2.5 h-2.5 rounded-full bg-orange-500" />
-            <p className="text-sm font-medium text-orange-800">Overdue Chats</p>
-          </div>
-          <p className="text-3xl font-bold text-orange-700 ml-5">{overdueChats}</p>
-        </div>
-      </div>
-
-      {/* Quote / payment stats */}
-      <div className="grid grid-cols-2 gap-3 mb-5">
-        <div className="bg-white border border-gray-200 rounded-2xl p-4">
-          <p className="text-sm text-gray-500">Pending Quotes</p>
-          <p className="text-3xl font-bold text-purple-600">{pendingQuotes}</p>
-        </div>
-        <div className="bg-white border border-gray-200 rounded-2xl p-4">
-          <p className="text-sm text-gray-500">Approved Jobs</p>
-          <p className="text-3xl font-bold text-green-600">{approvedJobs}</p>
-        </div>
-      </div>
-
-      {/* Super admin: per-company breakdown */}
-      {role === "super_admin" && companyStats.length > 0 && (
-        <div className="bg-white border border-gray-200 rounded-2xl p-5 mb-5">
-          <h2 className="font-semibold text-gray-900 mb-3">Jobs by Company</h2>
-          <div className="space-y-2">
-            {companyStats.map((c) => (
-              <div key={c.name} className="flex items-center gap-3">
-                <span className="text-sm text-gray-600 w-48 truncate">{c.name}</span>
-                <div className="flex-1 bg-gray-100 rounded-full h-2">
-                  <div
-                    className="bg-blue-500 h-2 rounded-full"
-                    style={{ width: `${Math.min(100, (c.count / Math.max(1, totalJobs)) * 100)}%` }}
-                  />
-                </div>
-                <span className="text-sm font-medium text-gray-900 w-8 text-right">{c.count}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Recent Jobs */}
-      <div className="bg-white border border-gray-200 rounded-2xl">
-        <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-          <h2 className="font-semibold text-gray-900">Recent Jobs</h2>
-          <Link href="/jobs" className="text-sm text-blue-600 hover:underline">View all</Link>
-        </div>
-        <div className="divide-y divide-gray-100">
-          {recentJobs.map((job) => {
-            const thread = threadMap.get(job.id);
-            return (
-              <Link key={job.id} href={`/jobs/${job.id}`}
-                className="flex items-center gap-3 px-5 py-4 hover:bg-gray-50 transition-colors">
-                <span className={`w-2 h-2 rounded-full shrink-0 ${priorityDot[job.priority] ?? "bg-gray-300"}`} />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-medium text-gray-900">{job.jobNumber}</span>
-                    {role === "super_admin" && (
-                      <span className="text-xs text-gray-400">{job.companyName}</span>
-                    )}
-                    {thread?.pendingOn === "team" && (
-                      <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full">🔴 Reply needed</span>
-                    )}
-                  </div>
-                  <p className="text-sm text-gray-500 truncate">{job.propertyAddress}</p>
-                </div>
-                <span className={`text-xs px-2.5 py-1 rounded-full font-medium shrink-0 ${statusColor[job.jobStatus] ?? "bg-gray-100 text-gray-600"}`}>
-                  {job.jobStatus.replace(/_/g, " ")}
-                </span>
-              </Link>
-            );
-          })}
-          {recentJobs.length === 0 && (
-            <div className="px-5 py-10 text-center text-gray-400">No jobs yet</div>
+          {(role === "operations_manager" || role === "super_admin") && (
+            <Link
+              href="/jobs/new"
+              className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors text-sm shadow-sm shrink-0"
+            >
+              <IconPlus />
+              New Job
+            </Link>
           )}
         </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-6 md:px-8 py-6 space-y-6">
+
+        {/* ── Attention required ── */}
+        {totalAttention > 0 && (
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+              <p className="text-sm font-semibold text-gray-700">Requires attention</p>
+              <span className="text-xs bg-red-100 text-red-600 font-bold px-2 py-0.5 rounded-full">{totalAttention}</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <AlertCard label="Needs Team Reply" value={needsTeamResponse} color="bg-red-500" bg="bg-red-50" border="border-red-200" text="text-red-800" href="/jobs?pendingOn=team" />
+              <AlertCard label="Awaiting Client" value={needsClientResponse} color="bg-amber-500" bg="bg-amber-50" border="border-amber-200" text="text-amber-800" href="/jobs?pendingOn=client" />
+              <AlertCard label="Overdue Chats" value={overdueChats} color="bg-orange-500" bg="bg-orange-50" border="border-orange-200" text="text-orange-800" href="/jobs?pendingOn=overdue" />
+            </div>
+          </div>
+        )}
+
+        {/* ── Metric cards ── */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <MetricCard label="Total Jobs" value={totalJobs} icon={<IconBriefcase />} accent="bg-gray-200" href="/jobs" />
+          <MetricCard label="New" value={newJobs} icon={<IconSpark />} accent="bg-blue-400" href="/jobs?status=new" />
+          <MetricCard label="In Progress" value={inProgressJobs} icon={<IconClock />} accent="bg-yellow-400" href="/jobs?status=in_progress" />
+          <MetricCard label="Completed" value={completedJobs} icon={<IconCheck />} accent="bg-green-500" href="/jobs?status=completed" />
+        </div>
+
+        {/* ── Job status pipeline ── */}
+        {totalJobs > 0 && (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-semibold text-gray-900">Job Pipeline</h2>
+              <span className="text-xs text-gray-400">{totalJobs} total</span>
+            </div>
+            <div className="space-y-3">
+              {Object.entries(statusConfig).map(([status, cfg]) => {
+                const count = jobs.filter((j) => j.jobStatus === status).length;
+                if (count === 0) return null;
+                const pct = Math.round((count / totalJobs) * 100);
+                return (
+                  <Link key={status} href={`/jobs?status=${status}`} className="flex items-center gap-3 group">
+                    <span className={`text-xs font-medium ${cfg.text} w-24 shrink-0`}>{cfg.label}</span>
+                    <div className="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden">
+                      <div
+                        className={`${cfg.bar} h-2 rounded-full transition-all duration-500`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                    <span className="text-xs font-semibold text-gray-700 w-6 text-right">{count}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ── Pending quotes alert ── */}
+        {pendingQuotes > 0 && (
+          <Link
+            href="/jobs?quoteStatus=pending"
+            className="flex items-center gap-4 bg-purple-50 border border-purple-200 rounded-2xl px-5 py-4 hover:shadow-md transition-all group"
+          >
+            <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center shrink-0">
+              <IconChat />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-purple-900">{pendingQuotes} quote{pendingQuotes !== 1 ? "s" : ""} awaiting preparation</p>
+              <p className="text-xs text-purple-600 mt-0.5">Jobs received but no quote sent yet</p>
+            </div>
+            <div className="text-purple-400 group-hover:text-purple-600 transition-colors shrink-0">
+              <IconChevron />
+            </div>
+          </Link>
+        )}
+
+        {/* ── Super admin: company breakdown ── */}
+        {role === "super_admin" && companyStats.length > 0 && (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-semibold text-gray-900">Jobs by Company</h2>
+              <Link href="/companies" className="text-xs text-blue-600 hover:underline">Manage</Link>
+            </div>
+            <div className="space-y-3">
+              {companyStats.map((c, i) => {
+                const pct = Math.round((c.count / Math.max(1, totalJobs)) * 100);
+                const colors = ["bg-blue-500", "bg-purple-500", "bg-green-500", "bg-orange-500", "bg-pink-500"];
+                return (
+                  <Link key={c.id} href={`/jobs?company=${c.id}`} className="flex items-center gap-3 group">
+                    <div className={`w-6 h-6 ${colors[i % colors.length]} rounded-lg flex items-center justify-center shrink-0`}>
+                      <span className="text-white text-xs font-bold">{c.name[0]}</span>
+                    </div>
+                    <span className="text-sm text-gray-700 w-44 truncate">{c.name}</span>
+                    <div className="flex-1 bg-gray-100 rounded-full h-1.5 overflow-hidden">
+                      <div
+                        className={`${colors[i % colors.length]} h-1.5 rounded-full`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                    <span className="text-sm font-semibold text-gray-900 w-6 text-right">{c.count}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ── Recent jobs ── */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
+          <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+            <h2 className="font-semibold text-gray-900">Recent Activity</h2>
+            <Link href="/jobs" className="text-xs text-blue-600 hover:underline font-medium">View all →</Link>
+          </div>
+          <div className="divide-y divide-gray-50">
+            {recentJobs.map((job) => {
+              const thread = threadMap.get(job.id);
+              const cfg = statusConfig[job.jobStatus];
+              const needsReply = thread?.pendingOn === "team";
+              return (
+                <Link
+                  key={job.id}
+                  href={`/jobs/${job.id}`}
+                  className="flex items-center gap-4 px-5 py-3.5 hover:bg-gray-50 transition-colors group"
+                >
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${priorityDot[job.priority] ?? "bg-gray-300"}`} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-semibold text-gray-900">{job.jobNumber}</span>
+                      {role === "super_admin" && (
+                        <span className="text-xs text-gray-400">{job.companyName}</span>
+                      )}
+                      {needsReply && (
+                        <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-medium animate-pulse">
+                          Reply needed
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-400 truncate mt-0.5">{job.propertyAddress}</p>
+                  </div>
+                  <span className={`text-xs px-2.5 py-1 rounded-full font-medium shrink-0 ${cfg?.bg ?? "bg-gray-100"} ${cfg?.text ?? "text-gray-600"}`}>
+                    {job.jobStatus.replace(/_/g, " ")}
+                  </span>
+                  <span className="text-gray-300 group-hover:text-gray-500 transition-colors shrink-0">
+                    <IconChevron />
+                  </span>
+                </Link>
+              );
+            })}
+            {recentJobs.length === 0 && (
+              <div className="px-5 py-14 text-center">
+                <div className="w-12 h-12 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                  <IconBriefcase />
+                </div>
+                <p className="text-sm font-medium text-gray-500">No jobs yet</p>
+                <p className="text-xs text-gray-400 mt-1">Jobs will appear here once created</p>
+              </div>
+            )}
+          </div>
+        </div>
+
       </div>
     </div>
   );

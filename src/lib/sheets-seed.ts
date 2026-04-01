@@ -1,13 +1,14 @@
 /**
  * Run once: npm run sheets:seed
  * Creates all tabs with headers and seeds demo data.
+ * Safe to run multiple times — skips records that already exist.
  */
 
 // env loaded via tsx --env-file flag
-import { ensureTab, appendRow } from "./sheets";
+import { ensureTab, appendRow, findRow, findRows, clearTabData } from "./sheets";
 import bcrypt from "bcryptjs";
 
-async function seed() {
+export async function seed() {
   console.log("📋 Setting up Google Sheets tabs...");
 
   const tabs = [
@@ -26,7 +27,7 @@ async function seed() {
 
   // ─── Tenants ───────────────────────────────────────────────────────────────
 
-  const tenant1 = await appendRow("Tenants", {
+  const tenant1 = await findRow("Tenants", (r) => r.id === "tenant-dgps") ?? await appendRow("Tenants", {
     id: "tenant-dgps",
     name: "Domain Group Plumbing & Services",
     slug: "dgps",
@@ -35,7 +36,7 @@ async function seed() {
     address: "Sydney NSW 2000",
   });
 
-  const tenant2 = await appendRow("Tenants", {
+  const tenant2 = await findRow("Tenants", (r) => r.id === "tenant-metro") ?? await appendRow("Tenants", {
     id: "tenant-metro",
     name: "Metro Maintenance",
     slug: "metro-maintenance",
@@ -48,8 +49,7 @@ async function seed() {
 
   // ─── Users ─────────────────────────────────────────────────────────────────
 
-  // Super Admin
-  await appendRow("Users", {
+  await findRow("Users", (r) => r.id === "user-superadmin") ?? await appendRow("Users", {
     id: "user-superadmin",
     tenantId: tenant1.id,
     name: "Super Admin",
@@ -60,8 +60,7 @@ async function seed() {
     isActive: "true",
   });
 
-  // Ops Manager — DGPS
-  const opsManager = await appendRow("Users", {
+  const opsManager = await findRow("Users", (r) => r.id === "user-ops-dgps") ?? await appendRow("Users", {
     id: "user-ops-dgps",
     tenantId: tenant1.id,
     name: "Sarah Mitchell",
@@ -72,8 +71,7 @@ async function seed() {
     isActive: "true",
   });
 
-  // Technician — DGPS
-  const technician = await appendRow("Users", {
+  const technician = await findRow("Users", (r) => r.id === "user-tech-dgps") ?? await appendRow("Users", {
     id: "user-tech-dgps",
     tenantId: tenant1.id,
     name: "Jake Thompson",
@@ -84,8 +82,7 @@ async function seed() {
     isActive: "true",
   });
 
-  // Client — DGPS
-  await appendRow("Users", {
+  await findRow("Users", (r) => r.id === "user-client-dgps") ?? await appendRow("Users", {
     id: "user-client-dgps",
     tenantId: tenant1.id,
     name: "Emma Johnson",
@@ -96,8 +93,7 @@ async function seed() {
     isActive: "true",
   });
 
-  // Ops Manager — Metro
-  await appendRow("Users", {
+  await findRow("Users", (r) => r.id === "user-ops-metro") ?? await appendRow("Users", {
     id: "user-ops-metro",
     tenantId: tenant2.id,
     name: "David Chen",
@@ -112,7 +108,7 @@ async function seed() {
 
   // ─── Jobs ──────────────────────────────────────────────────────────────────
 
-  const job1 = await appendRow("Jobs", {
+  const job1 = await findRow("Jobs", (r) => r.id === "job-001") ?? await appendRow("Jobs", {
     id: "job-001",
     tenantId: tenant1.id,
     jobNumber: "JOB-001",
@@ -138,7 +134,7 @@ async function seed() {
     notes: "",
   });
 
-  const job2 = await appendRow("Jobs", {
+  const job2 = await findRow("Jobs", (r) => r.id === "job-002") ?? await appendRow("Jobs", {
     id: "job-002",
     tenantId: tenant1.id,
     jobNumber: "JOB-002",
@@ -162,7 +158,7 @@ async function seed() {
     notes: "",
   });
 
-  const job3 = await appendRow("Jobs", {
+  const job3 = await findRow("Jobs", (r) => r.id === "job-003") ?? await appendRow("Jobs", {
     id: "job-003",
     tenantId: tenant1.id,
     jobNumber: "JOB-003",
@@ -188,23 +184,32 @@ async function seed() {
 
   console.log("  ✓ Jobs");
 
-  // ─── Quote Items ───────────────────────────────────────────────────────────
+  // ─── Quote Items (skip if job already has quote items) ─────────────────────
 
-  await appendRow("QuoteItems", { id: crypto.randomUUID(), jobId: job1.id, description: "Labour (2hrs)", quantity: "2", unitPrice: "150", total: "300" });
-  await appendRow("QuoteItems", { id: crypto.randomUUID(), jobId: job1.id, description: "Pipe replacement material", quantity: "1", unitPrice: "250", total: "250" });
-  await appendRow("QuoteItems", { id: crypto.randomUUID(), jobId: job1.id, description: "Call-out fee", quantity: "1", unitPrice: "100", total: "100" });
+  const job1Items = await findRows("QuoteItems", (r) => r.jobId === job1.id);
+  if (job1Items.length === 0) {
+    await appendRow("QuoteItems", { id: crypto.randomUUID(), jobId: job1.id, description: "Labour (2hrs)", quantity: "2", unitPrice: "150", total: "300" });
+    await appendRow("QuoteItems", { id: crypto.randomUUID(), jobId: job1.id, description: "Pipe replacement material", quantity: "1", unitPrice: "250", total: "250" });
+    await appendRow("QuoteItems", { id: crypto.randomUUID(), jobId: job1.id, description: "Call-out fee", quantity: "1", unitPrice: "100", total: "100" });
+  }
 
-  await appendRow("QuoteItems", { id: crypto.randomUUID(), jobId: job2.id, description: "Hot water unit replacement", quantity: "1", unitPrice: "380", total: "380" });
-  await appendRow("QuoteItems", { id: crypto.randomUUID(), jobId: job2.id, description: "Labour (1hr)", quantity: "1", unitPrice: "100", total: "100" });
+  const job2Items = await findRows("QuoteItems", (r) => r.jobId === job2.id);
+  if (job2Items.length === 0) {
+    await appendRow("QuoteItems", { id: crypto.randomUUID(), jobId: job2.id, description: "Hot water unit replacement", quantity: "1", unitPrice: "380", total: "380" });
+    await appendRow("QuoteItems", { id: crypto.randomUUID(), jobId: job2.id, description: "Labour (1hr)", quantity: "1", unitPrice: "100", total: "100" });
+  }
 
-  await appendRow("QuoteItems", { id: crypto.randomUUID(), jobId: job3.id, description: "Drain clearing", quantity: "1", unitPrice: "200", total: "200" });
-  await appendRow("QuoteItems", { id: crypto.randomUUID(), jobId: job3.id, description: "Call-out fee", quantity: "1", unitPrice: "80", total: "80" });
+  const job3Items = await findRows("QuoteItems", (r) => r.jobId === job3.id);
+  if (job3Items.length === 0) {
+    await appendRow("QuoteItems", { id: crypto.randomUUID(), jobId: job3.id, description: "Drain clearing", quantity: "1", unitPrice: "200", total: "200" });
+    await appendRow("QuoteItems", { id: crypto.randomUUID(), jobId: job3.id, description: "Call-out fee", quantity: "1", unitPrice: "80", total: "80" });
+  }
 
   console.log("  ✓ QuoteItems");
 
   // ─── Chat Threads ──────────────────────────────────────────────────────────
 
-  const thread1 = await appendRow("ChatThreads", {
+  const thread1 = await findRow("ChatThreads", (r) => r.id === "thread-001") ?? await appendRow("ChatThreads", {
     id: "thread-001",
     tenantId: tenant1.id,
     jobId: job1.id,
@@ -214,7 +219,7 @@ async function seed() {
     lastMessageBy: "client",
   });
 
-  const thread2 = await appendRow("ChatThreads", {
+  const thread2 = await findRow("ChatThreads", (r) => r.id === "thread-002") ?? await appendRow("ChatThreads", {
     id: "thread-002",
     tenantId: tenant1.id,
     jobId: job2.id,
@@ -225,7 +230,7 @@ async function seed() {
     responseDueTime: new Date(Date.now() + 4 * 3600000).toISOString(),
   });
 
-  const thread3 = await appendRow("ChatThreads", {
+  const thread3 = await findRow("ChatThreads", (r) => r.id === "thread-003") ?? await appendRow("ChatThreads", {
     id: "thread-003",
     tenantId: tenant1.id,
     jobId: job3.id,
@@ -237,99 +242,102 @@ async function seed() {
 
   console.log("  ✓ ChatThreads");
 
-  // ─── Messages ──────────────────────────────────────────────────────────────
+  // ─── Messages (skip if thread already has messages) ────────────────────────
 
-  // Thread 1 messages
-  const t1msgs = [
-    { type: "system", content: "Job JOB-001 created", senderName: "System" },
-    { type: "text", content: "Hi, we have an urgent burst pipe at 78 George St. Need someone ASAP.", senderName: "Emma Johnson", senderId: "user-client-dgps" },
-    { type: "text", content: "Got it — Jake is available this afternoon. Sending quote now.", senderName: "Sarah Mitchell", senderId: opsManager.id },
-    { type: "system", content: "Quote Sent — $715.00 incl. GST", senderName: "System" },
-    { type: "system", content: "Quote Approved ✅", senderName: "System" },
-    { type: "system", content: "Job Started", senderName: "System" },
-    { type: "text", content: "When can you start on this?", senderName: "Emma Johnson", senderId: "user-client-dgps" },
-  ];
-
-  for (const msg of t1msgs) {
-    await appendRow("Messages", {
-      id: crypto.randomUUID(),
-      tenantId: tenant1.id,
-      threadId: thread1.id,
-      senderId: msg.senderId ?? "",
-      senderName: msg.senderName,
-      senderRole: (msg as { senderRole?: string }).senderRole ?? "",
-      type: msg.type,
-      content: msg.content,
-      metadata: "",
-    });
+  const thread1Msgs = await findRows("Messages", (r) => r.threadId === thread1.id);
+  if (thread1Msgs.length === 0) {
+    const t1msgs = [
+      { type: "system", content: "Job JOB-001 created", senderName: "System" },
+      { type: "text", content: "Hi, we have an urgent burst pipe at 78 George St. Need someone ASAP.", senderName: "Emma Johnson", senderId: "user-client-dgps" },
+      { type: "text", content: "Got it — Jake is available this afternoon. Sending quote now.", senderName: "Sarah Mitchell", senderId: opsManager.id },
+      { type: "system", content: "Quote Sent — $715.00 incl. GST", senderName: "System" },
+      { type: "system", content: "Quote Approved ✅", senderName: "System" },
+      { type: "system", content: "Job Started", senderName: "System" },
+      { type: "text", content: "When can you start on this?", senderName: "Emma Johnson", senderId: "user-client-dgps" },
+    ];
+    for (const msg of t1msgs) {
+      await appendRow("Messages", {
+        id: crypto.randomUUID(),
+        tenantId: tenant1.id,
+        threadId: thread1.id,
+        senderId: msg.senderId ?? "",
+        senderName: msg.senderName,
+        senderRole: "",
+        type: msg.type,
+        content: msg.content,
+        metadata: "",
+      });
+    }
   }
 
-  // Thread 2 messages
-  const t2msgs = [
-    { type: "system", content: "Job JOB-002 created", senderName: "System" },
-    { type: "text", content: "Hot water is completely out at 22 Pitt St. Tenants very unhappy.", senderName: "Emma Johnson", senderId: "user-client-dgps" },
-    { type: "text", content: "We will inspect tomorrow morning and send you a quote by noon.", senderName: "Sarah Mitchell", senderId: opsManager.id },
-    {
-      type: "system",
-      content: "Quote Sent",
-      senderName: "System",
-      metadata: JSON.stringify({
-        quoteItems: [
-          { description: "Hot water unit replacement", total: 380 },
-          { description: "Labour (1hr)", total: 100 },
-        ],
-        subtotal: 480,
-        gst: 48,
-        total: 528,
-      }),
-    },
-    { type: "text", content: "Please review the quote and approve to proceed.", senderName: "Sarah Mitchell", senderId: opsManager.id },
-  ];
-
-  for (const msg of t2msgs) {
-    await appendRow("Messages", {
-      id: crypto.randomUUID(),
-      tenantId: tenant1.id,
-      threadId: thread2.id,
-      senderId: msg.senderId ?? "",
-      senderName: msg.senderName,
-      senderRole: (msg as any).senderRole ?? "",
-      type: msg.type,
-      content: msg.content,
-      metadata: (msg as any).metadata ?? "",
-    });
+  const thread2Msgs = await findRows("Messages", (r) => r.threadId === thread2.id);
+  if (thread2Msgs.length === 0) {
+    const t2msgs: Array<{ type: string; content: string; senderName: string; senderId?: string; metadata?: string }> = [
+      { type: "system", content: "Job JOB-002 created", senderName: "System" },
+      { type: "text", content: "Hot water is completely out at 22 Pitt St. Tenants very unhappy.", senderName: "Emma Johnson", senderId: "user-client-dgps" },
+      { type: "text", content: "We will inspect tomorrow morning and send you a quote by noon.", senderName: "Sarah Mitchell", senderId: opsManager.id },
+      {
+        type: "system",
+        content: "Quote Sent",
+        senderName: "System",
+        metadata: JSON.stringify({
+          quoteItems: [
+            { description: "Hot water unit replacement", total: 380 },
+            { description: "Labour (1hr)", total: 100 },
+          ],
+          subtotal: 480,
+          gst: 48,
+          total: 528,
+        }),
+      },
+      { type: "text", content: "Please review the quote and approve to proceed.", senderName: "Sarah Mitchell", senderId: opsManager.id },
+    ];
+    for (const msg of t2msgs) {
+      await appendRow("Messages", {
+        id: crypto.randomUUID(),
+        tenantId: tenant1.id,
+        threadId: thread2.id,
+        senderId: msg.senderId ?? "",
+        senderName: msg.senderName,
+        senderRole: "",
+        type: msg.type,
+        content: msg.content,
+        metadata: msg.metadata ?? "",
+      });
+    }
   }
 
-  // Thread 3 messages
-  const t3msgs = [
-    { type: "system", content: "Job JOB-003 created", senderName: "System" },
-    { type: "text", content: "Blocked drain in bathroom at 5 Market St.", senderName: "Emma Johnson", senderId: "user-client-dgps" },
-    { type: "system", content: "Quote Sent — $308.00 incl. GST", senderName: "System" },
-    { type: "system", content: "Quote Approved ✅", senderName: "System" },
-    { type: "system", content: "Job Started", senderName: "System" },
-    { type: "system", content: "Job Completed ✅", senderName: "System" },
-    { type: "text", content: "Job completed successfully. All clear.", senderName: "Jake Thompson", senderId: technician.id },
-  ];
-
-  for (const msg of t3msgs) {
-    await appendRow("Messages", {
-      id: crypto.randomUUID(),
-      tenantId: tenant1.id,
-      threadId: thread3.id,
-      senderId: msg.senderId ?? "",
-      senderName: msg.senderName,
-      senderRole: (msg as { senderRole?: string }).senderRole ?? "",
-      type: msg.type,
-      content: msg.content,
-      metadata: "",
-    });
+  const thread3Msgs = await findRows("Messages", (r) => r.threadId === thread3.id);
+  if (thread3Msgs.length === 0) {
+    const t3msgs = [
+      { type: "system", content: "Job JOB-003 created", senderName: "System" },
+      { type: "text", content: "Blocked drain in bathroom at 5 Market St.", senderName: "Emma Johnson", senderId: "user-client-dgps" },
+      { type: "system", content: "Quote Sent — $308.00 incl. GST", senderName: "System" },
+      { type: "system", content: "Quote Approved ✅", senderName: "System" },
+      { type: "system", content: "Job Started", senderName: "System" },
+      { type: "system", content: "Job Completed ✅", senderName: "System" },
+      { type: "text", content: "Job completed successfully. All clear.", senderName: "Jake Thompson", senderId: technician.id },
+    ];
+    for (const msg of t3msgs) {
+      await appendRow("Messages", {
+        id: crypto.randomUUID(),
+        tenantId: tenant1.id,
+        threadId: thread3.id,
+        senderId: msg.senderId ?? "",
+        senderName: msg.senderName,
+        senderRole: "",
+        type: msg.type,
+        content: msg.content,
+        metadata: "",
+      });
+    }
   }
 
   console.log("  ✓ Messages");
 
   // ─── Metro tenant demo job ─────────────────────────────────────────────────
 
-  const metroJob = await appendRow("Jobs", {
+  const metroJob = await findRow("Jobs", (r) => r.id === "job-metro-001") ?? await appendRow("Jobs", {
     id: "job-metro-001",
     tenantId: tenant2.id,
     jobNumber: "JOB-001",
@@ -350,7 +358,7 @@ async function seed() {
     notes: "",
   });
 
-  const metroThread = await appendRow("ChatThreads", {
+  const metroThread = await findRow("ChatThreads", (r) => r.jobId === metroJob.id) ?? await appendRow("ChatThreads", {
     id: crypto.randomUUID(),
     tenantId: tenant2.id,
     jobId: metroJob.id,
@@ -360,17 +368,20 @@ async function seed() {
     lastMessageBy: "client",
   });
 
-  await appendRow("Messages", {
-    id: crypto.randomUUID(),
-    tenantId: tenant2.id,
-    threadId: metroThread.id,
-    senderId: "user-ops-metro",
-    senderName: "David Chen",
-    senderRole: "",
-    type: "system",
-    content: "Job JOB-001 created",
-    metadata: "",
-  });
+  const metroMsgs = await findRows("Messages", (r) => r.threadId === metroThread.id);
+  if (metroMsgs.length === 0) {
+    await appendRow("Messages", {
+      id: crypto.randomUUID(),
+      tenantId: tenant2.id,
+      threadId: metroThread.id,
+      senderId: "user-ops-metro",
+      senderName: "David Chen",
+      senderRole: "",
+      type: "system",
+      content: "Job JOB-001 created",
+      metadata: "",
+    });
+  }
 
   console.log("  ✓ Metro demo job");
 
@@ -383,7 +394,23 @@ async function seed() {
   console.log("\nPublic request form: http://localhost:3000/request/dgps");
 }
 
-seed().catch((err) => {
-  console.error("❌ Seed failed:", err);
-  process.exit(1);
-});
+export async function resetAndSeed() {
+  console.log("🗑️  Clearing all tabs...");
+  const tabs = [
+    "Messages", "ChatThreads", "QuoteItems", "Jobs",
+    "Users", "Tenants", "Attachments", "Inspections",
+  ] as const;
+  for (const tab of tabs) {
+    await clearTabData(tab);
+    console.log(`  ✓ Cleared ${tab}`);
+  }
+  await seed();
+}
+
+// Only auto-run when executed directly via CLI
+if (process.argv[1]?.includes("sheets-seed")) {
+  seed().catch((err) => {
+    console.error("❌ Seed failed:", err);
+    process.exit(1);
+  });
+}

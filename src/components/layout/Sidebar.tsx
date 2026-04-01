@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
+import NotificationBell from "./NotificationBell";
 
 type NavItem = {
   href: string;
@@ -65,7 +66,7 @@ const navItems: NavItem[] = [
   {
     href: "/settings/users",
     label: "Users",
-    roles: ["super_admin", "operations_manager"],
+    roles: ["super_admin"],
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
@@ -143,18 +144,21 @@ export default function Sidebar() {
 
       {/* User */}
       <div className="px-3 pb-4 border-t border-gray-800 pt-4">
-        <div className="flex items-center gap-3 px-3 py-2">
-          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shrink-0 shadow-sm">
-            <span className="text-sm font-semibold text-white">
-              {session?.user?.name?.[0]?.toUpperCase() || "U"}
-            </span>
+        <div className="flex items-center justify-between px-3 py-2">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shrink-0 shadow-sm">
+              <span className="text-sm font-semibold text-white">
+                {session?.user?.name?.[0]?.toUpperCase() || "U"}
+              </span>
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-white truncate">{session?.user?.name}</p>
+              <p className="text-xs text-gray-400 capitalize truncate">
+                {role?.replace(/_/g, " ")}
+              </p>
+            </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-white truncate">{session?.user?.name}</p>
-            <p className="text-xs text-gray-400 capitalize truncate">
-              {role?.replace(/_/g, " ")}
-            </p>
-          </div>
+          <NotificationBell />
         </div>
         <button
           onClick={() => signOut({ callbackUrl: "/login" })}

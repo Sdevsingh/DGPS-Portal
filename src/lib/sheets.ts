@@ -2,19 +2,20 @@ import { google } from "googleapis";
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
-function getAuth() {
+// Singleton — auth and client are stateless, safe to reuse across requests
+let _sheetsClient: ReturnType<typeof google.sheets> | null = null;
+
+function getSheetsClient() {
+  if (_sheetsClient) return _sheetsClient;
   const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
   const key = process.env.GOOGLE_SERVICE_ACCOUNT_KEY?.replace(/\\n/g, "\n");
   if (!email || !key) throw new Error("Missing Google service account credentials");
-
-  return new google.auth.GoogleAuth({
+  const auth = new google.auth.GoogleAuth({
     credentials: { client_email: email, private_key: key },
     scopes: ["https://www.googleapis.com/auth/spreadsheets"],
   });
-}
-
-function getSheetsClient() {
-  return google.sheets({ version: "v4", auth: getAuth() });
+  _sheetsClient = google.sheets({ version: "v4", auth });
+  return _sheetsClient;
 }
 
 const SPREADSHEET_ID = process.env.GOOGLE_SHEETS_ID!;
@@ -29,7 +30,8 @@ export type TabName =
   | "ChatThreads"
   | "Messages"
   | "Attachments"
-  | "Inspections";
+  | "Inspections"
+  | "PasswordResets";
 
 // ─── Column Headers (order matters — must match sheet columns) ────────────────
 
@@ -55,20 +57,42 @@ const HEADERS: Record<TabName, string[]> = {
     "type", "content", "metadata", "createdAt",
   ],
   Attachments: ["id", "jobId", "messageId", "fileName", "fileType", "fileUrl", "fileSize", "createdAt"],
+  PasswordResets: ["id", "email", "token", "expiresAt", "used"],
   Inspections: [
     "id", "tenantId", "jobId", "inspectedBy", "inspectedAt",
     "checklist", "notes", "status", "createdAt",
   ],
 };
 
-// ─── In-memory cache (60s TTL per tab) ───────────────────────────────────────
+// ─── In-memory cache (30s TTL per tab) ───────────────────────────────────────
 
 type CacheEntry = { rows: Record<string, string>[]; ts: number };
 const cache = new Map<TabName, CacheEntry>();
-const CACHE_TTL = 30_000; // 30 seconds — short enough to catch stale reads in prototype
+const CACHE_TTL = 30_000; // 30 seconds
 
 function bustCache(tab: TabName) {
   cache.delete(tab);
+}
+
+// ─── Spreadsheet metadata cache (sheet ids don't change) ─────────────────────
+
+let _metaCache: { sheetIds: Record<string, number>; ts: number } | null = null;
+const META_TTL = 300_000; // 5 minutes — sheet ids are stable
+
+async function getSheetId(tab: TabName): Promise<number> {
+  if (_metaCache && Date.now() - _metaCache.ts < META_TTL) {
+    return _metaCache.sheetIds[tab] ?? 0;
+  }
+  const sheets = getSheetsClient();
+  const meta = await sheets.spreadsheets.get({ spreadsheetId: SPREADSHEET_ID });
+  const sheetIds: Record<string, number> = {};
+  for (const s of meta.data.sheets ?? []) {
+    const title = s.properties?.title;
+    const id = s.properties?.sheetId;
+    if (title && id !== undefined) sheetIds[title] = id;
+  }
+  _metaCache = { sheetIds, ts: Date.now() };
+  return sheetIds[tab] ?? 0;
 }
 
 // ─── Core: fetch all rows from a tab ─────────────────────────────────────────
@@ -90,10 +114,19 @@ export async function getRows(tab: TabName): Promise<Record<string, string>[]> {
   }
 
   const headers = values[0] as string[];
-  const rows = values.slice(1).map((row) => {
+  const rawRows = values.slice(1).map((row) => {
     const obj: Record<string, string> = {};
     headers.forEach((h, i) => { obj[h] = (row[i] as string) ?? ""; });
     return obj;
+  });
+
+  // Deduplicate by id (first occurrence wins) — guards against multiple seed runs
+  const seenIds = new Set<string>();
+  const rows = rawRows.filter((r) => {
+    if (!r.id) return true; // rows without id pass through unchanged
+    if (seenIds.has(r.id)) return false;
+    seenIds.add(r.id);
+    return true;
   });
 
   cache.set(tab, { rows, ts: Date.now() });
@@ -199,7 +232,7 @@ export async function updateRow(
 export async function ensureTab(tab: TabName): Promise<void> {
   const sheets = getSheetsClient();
 
-  // Get existing sheets
+  // Get existing sheets (bypass meta cache since we may be creating new sheets)
   const meta = await sheets.spreadsheets.get({ spreadsheetId: SPREADSHEET_ID });
   const existing = meta.data.sheets?.map((s) => s.properties?.title) ?? [];
 
@@ -211,6 +244,7 @@ export async function ensureTab(tab: TabName): Promise<void> {
         requests: [{ addSheet: { properties: { title: tab } } }],
       },
     });
+    _metaCache = null; // invalidate so getSheetId picks up the new sheet
   }
 
   // Write headers to row 1
@@ -251,10 +285,7 @@ export async function deleteRows(
 
   if (rowsToDelete.length === 0) return;
 
-  // Get sheet id
-  const meta = await sheets.spreadsheets.get({ spreadsheetId: SPREADSHEET_ID });
-  const sheet = meta.data.sheets?.find((s) => s.properties?.title === tab);
-  const sheetId = sheet?.properties?.sheetId ?? 0;
+  const sheetId = await getSheetId(tab);
 
   // Delete in reverse order so row indices stay valid
   const requests = [...rowsToDelete].reverse().map((rowIndex) => ({
@@ -325,9 +356,7 @@ export async function clearTabData(tab: TabName): Promise<number> {
   const totalRows = (res.data.values ?? []).length;
   if (totalRows <= 1) return 0; // header only or empty
 
-  const meta = await sheets.spreadsheets.get({ spreadsheetId: SPREADSHEET_ID });
-  const sheet = meta.data.sheets?.find((s) => s.properties?.title === tab);
-  const sheetId = sheet?.properties?.sheetId ?? 0;
+  const sheetId = await getSheetId(tab);
 
   await sheets.spreadsheets.batchUpdate({
     spreadsheetId: SPREADSHEET_ID,

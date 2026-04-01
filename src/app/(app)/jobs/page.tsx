@@ -36,6 +36,8 @@ export default async function JobsPage({
     priority?: string;
     paymentStatus?: string;
     inspectionRequired?: string;
+    company?: string;
+    pendingOn?: string;
   }>;
 }) {
   const params = await searchParams;
@@ -59,6 +61,21 @@ export default async function JobsPage({
   if (params.priority) jobs = jobs.filter((j) => j.priority === params.priority);
   if (params.paymentStatus) jobs = jobs.filter((j) => j.paymentStatus === params.paymentStatus);
   if (params.inspectionRequired) jobs = jobs.filter((j) => j.inspectionRequired === params.inspectionRequired);
+  if (params.company) jobs = jobs.filter((j) => j.tenantId === params.company);
+  if (params.pendingOn === "overdue") {
+    const now = new Date();
+    const overdueJobIds = new Set(
+      allThreads
+        .filter((t) => t.pendingOn !== "none" && t.responseDueTime && new Date(t.responseDueTime) < now)
+        .map((t) => t.jobId)
+    );
+    jobs = jobs.filter((j) => overdueJobIds.has(j.id));
+  } else if (params.pendingOn) {
+    const matchingJobIds = new Set(
+      allThreads.filter((t) => t.pendingOn === params.pendingOn).map((t) => t.jobId)
+    );
+    jobs = jobs.filter((j) => matchingJobIds.has(j.id));
+  }
 
   // Sort: high priority first, then newest
   jobs.sort((a, b) => {
