@@ -154,7 +154,7 @@ export default function LoginPage() {
                 <p className="text-sm font-semibold text-blue-300 mb-1">Reset your password</p>
                 {forgotSent ? (
                   <p className="text-xs text-green-400 leading-relaxed">
-                    If that email is registered, you&apos;ll receive a reset link shortly. Check your inbox.
+                    If the email is registered, you&apos;ll receive a reset link shortly. Check your inbox.
                   </p>
                 ) : (
                   <form onSubmit={handleForgot} className="mt-2 space-y-2">
