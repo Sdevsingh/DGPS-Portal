@@ -89,7 +89,7 @@ async function getSheetId(tab: TabName): Promise<number> {
   for (const s of meta.data.sheets ?? []) {
     const title = s.properties?.title;
     const id = s.properties?.sheetId;
-    if (title && id !== undefined) sheetIds[title] = id;
+    if (title && typeof id === 'number') sheetIds[title] = id;
   }
   _metaCache = { sheetIds, ts: Date.now() };
   return sheetIds[tab] ?? 0;
@@ -159,8 +159,7 @@ export async function appendRow(
 ): Promise<Record<string, string>> {
   const id = data.id || crypto.randomUUID();
   const now = new Date().toISOString();
-  const row = { id, createdAt: now, updatedAt: now, ...data };
-
+  const row: Record<string, string> = { id, createdAt: now, updatedAt: now, ...data };
   const headers = HEADERS[tab];
   const values = [headers.map((h) => row[h] ?? "")];
 
@@ -178,6 +177,8 @@ export async function appendRow(
 
 // ─── Update an existing row by id ─────────────────────────────────────────────
 
+// ─── Update an existing row by id (OPTIMIZED) ─────────────────────────────────
+
 export async function updateRow(
   tab: TabName,
   id: string,
@@ -185,37 +186,28 @@ export async function updateRow(
 ): Promise<Record<string, string> | null> {
   const sheets = getSheetsClient();
 
-  // Get raw sheet data to find the row index
-  const res = await sheets.spreadsheets.values.get({
-    spreadsheetId: SPREADSHEET_ID,
-    range: `${tab}!A:ZZ`,
-  });
-
-  const values = res.data.values ?? [];
-  if (values.length < 2) return null;
-
-  const headers = values[0] as string[];
-  const idColIndex = headers.indexOf("id");
-  if (idColIndex === -1) return null;
-
-  // Row 0 = headers, row 1 = first data row → sheet row 2 (1-indexed)
-  const rowIndex = values.findIndex((row, i) => i > 0 && row[idColIndex] === id);
+  // 1. ELIMINATE THE GET REQUEST: Use our lightning-fast RAM cache to find the row
+  // instead of asking Google Sheets to send us the whole file again.
+  const rows = await getRows(tab);
+  const rowIndex = rows.findIndex((r) => r.id === id);
   if (rowIndex === -1) return null;
 
-  const sheetRowNumber = rowIndex + 1; // 1-indexed
+  // Calculate exact Google Sheet row.
+  // Row 1 = Headers. 'rows' array starts at index 0. So index 0 = Sheet Row 2.
+  const sheetRowNumber = rowIndex + 2;
 
-  // Build updated row
-  const existingObj: Record<string, string> = {};
-  headers.forEach((h, i) => { existingObj[h] = (values[rowIndex][i] as string) ?? ""; });
-
-  const updated = {
+  // Merge the existing data with the new toggle status
+  const existingObj = rows[rowIndex];
+  const updated: Record<string, string> = {
     ...existingObj,
     ...patch,
     updatedAt: new Date().toISOString(),
   };
 
+  const headers = HEADERS[tab];
   const updatedValues = [headers.map((h) => updated[h] ?? "")];
 
+  // 2. THE ONLY NETWORK REQUEST: Send the targeted update to Google
   await sheets.spreadsheets.values.update({
     spreadsheetId: SPREADSHEET_ID,
     range: `${tab}!A${sheetRowNumber}:ZZ${sheetRowNumber}`,
@@ -223,7 +215,14 @@ export async function updateRow(
     requestBody: { values: updatedValues },
   });
 
-  bustCache(tab);
+  // 3. CACHE MUTATION: Do NOT use bustCache(tab) here.
+  // Wiping the cache forces router.refresh() to wait for a 2nd massive Google GET request.
+  // Instead, we instantly update the data in our RAM cache so the page reload is 0ms.
+  const cached = cache.get(tab);
+  if (cached) {
+    cached.rows[rowIndex] = updated;
+  }
+
   return updated;
 }
 

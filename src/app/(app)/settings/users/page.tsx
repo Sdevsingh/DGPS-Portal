@@ -4,6 +4,7 @@ import { findRows, getRows } from "@/lib/sheets";
 import { redirect } from "next/navigation";
 import UserManagement from "@/components/settings/UserManagement";
 
+
 export default async function UsersSettingsPage() {
   const session = await getServerSession(authOptions);
   if (!session) redirect("/login");
