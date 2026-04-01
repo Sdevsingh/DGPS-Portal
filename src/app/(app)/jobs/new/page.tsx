@@ -26,6 +26,7 @@ export default function NewJobPage() {
     category: "Plumbing",
     priority: "medium",
     source: "manual",
+    inspectionRequired: "false",
   });
 
   function set(key: string, value: string) {
@@ -135,6 +136,25 @@ export default function NewJobPage() {
             <label className={labelCls}>Description *</label>
             <textarea required rows={4} value={form.description} onChange={(e) => set("description", e.target.value)}
               className={inputCls + " resize-none"} placeholder="Describe the job in detail..." />
+          </div>
+
+          {/* Inspection Required toggle */}
+          <div className="col-span-2">
+            <div className="flex items-center justify-between px-4 py-3 border border-gray-300 rounded-xl bg-white">
+              <div>
+                <p className="text-sm font-medium text-gray-700">Inspection Required?</p>
+                <p className="text-xs text-gray-400 mt-0.5">Team will inspect before quoting</p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={form.inspectionRequired === "true"}
+                onClick={() => set("inspectionRequired", form.inspectionRequired === "true" ? "false" : "true")}
+                className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${form.inspectionRequired === "true" ? "bg-blue-600" : "bg-gray-300"}`}
+              >
+                <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${form.inspectionRequired === "true" ? "translate-x-[1.375rem]" : "translate-x-0.5"}`} />
+              </button>
+            </div>
           </div>
         </div>
 

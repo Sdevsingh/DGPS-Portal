@@ -303,17 +303,17 @@ const labelCls = "block text-sm font-medium text-gray-700 mb-1.5";
 
 function Toggle({ checked, onChange, label, hint }: { checked: boolean; onChange: () => void; label: string; hint: string }) {
   return (
-    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+    <div className="flex items-center justify-between px-4 py-3 border border-gray-200 rounded-xl bg-white">
       <div>
         <p className="font-medium text-gray-900 text-sm">{label}</p>
-        <p className="text-xs text-gray-500 mt-0.5">{hint}</p>
+        <p className="text-xs text-gray-400 mt-0.5">{hint}</p>
       </div>
       <button
         type="button"
         onClick={onChange}
         role="switch"
         aria-checked={checked}
-        className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${checked ? "bg-blue-600" : "bg-gray-300"}`}
+        className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 shrink-0 ${checked ? "bg-blue-600" : "bg-gray-300"}`}
       >
         <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${checked ? "translate-x-[1.375rem]" : "translate-x-0.5"}`} />
       </button>
