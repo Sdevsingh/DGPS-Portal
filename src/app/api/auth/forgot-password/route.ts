@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { findRow, appendRow, ensureTab } from "@/lib/sheets";
+import { findRow, findRows, updateRow, appendRow, ensureTab } from "@/lib/sheets";
 import { Resend } from "resend";
 import crypto from "crypto";
 
@@ -17,6 +17,13 @@ export async function POST(req: NextRequest) {
   const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour
 
   await ensureTab("PasswordResets");
+
+  // Invalidate any existing unused tokens for this email
+  const existingTokens = await findRows("PasswordResets", (r) => r.email === email && r.used !== "true");
+  for (const t of existingTokens) {
+    await updateRow("PasswordResets", t.id, { used: "true" });
+  }
+
   await appendRow("PasswordResets", { email, token, expiresAt, used: "false" });
 
   const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";

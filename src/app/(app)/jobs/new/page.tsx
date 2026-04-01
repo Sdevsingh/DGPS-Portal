@@ -32,9 +32,12 @@ export default function NewJobPage() {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
+  const [submitError, setSubmitError] = useState("");
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
+    setSubmitError("");
     try {
       const res = await fetch("/api/jobs", {
         method: "POST",
@@ -44,7 +47,12 @@ export default function NewJobPage() {
       if (res.ok) {
         const job = await res.json();
         router.push(`/jobs/${job.id}`);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setSubmitError(data.error ?? "Failed to create job. Please try again.");
       }
+    } catch {
+      setSubmitError("Network error. Please check your connection and try again.");
     } finally {
       setLoading(false);
     }
@@ -64,6 +72,11 @@ export default function NewJobPage() {
         <h1 className="text-2xl font-bold text-gray-900">New Job</h1>
       </div>
 
+      {submitError && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
+          {submitError}
+        </div>
+      )}
       <form onSubmit={handleSubmit} className="bg-white border border-gray-200 rounded-2xl p-6 space-y-5">
         <div className="grid grid-cols-2 gap-4">
           <div className="col-span-2">

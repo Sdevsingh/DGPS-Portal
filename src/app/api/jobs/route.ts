@@ -20,8 +20,12 @@ export async function GET(req: NextRequest) {
   const paymentStatus = searchParams.get("paymentStatus");
   const inspectionRequired = searchParams.get("inspectionRequired");
 
+  const { id: userId } = session.user;
+
   const jobs = await findRows("Jobs", (row) => {
     if (filterTenantId && row.tenantId !== filterTenantId) return false;
+    // Technicians can only see jobs assigned to them
+    if (role === "technician" && row.assignedToId !== userId) return false;
     if (status && row.jobStatus !== status) return false;
     if (quoteStatus && row.quoteStatus !== quoteStatus) return false;
     if (priority && row.priority !== priority) return false;

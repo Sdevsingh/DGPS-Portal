@@ -162,7 +162,7 @@ export default function LoginPage() {
                       type="email"
                       placeholder="your@email.com"
                       value={forgotEmail}
-                      onChange={(e) => setForgotEmail(e.target.value)}
+                      onChange={(e) => { setForgotEmail(e.target.value); setError(""); }}
                       onKeyDown={(e) => e.key === "Enter" && forgotEmail && handleForgot(e)}
                       className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
                     />

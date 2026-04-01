@@ -181,6 +181,7 @@ export default async function DashboardPage() {
 
   const statusConfig: Record<string, { label: string; bg: string; text: string; bar: string }> = {
     new:         { label: "New",         bg: "bg-blue-50",    text: "text-blue-700",   bar: "bg-blue-400" },
+    ready:       { label: "Ready",       bg: "bg-purple-50",  text: "text-purple-700", bar: "bg-purple-400" },
     in_progress: { label: "In Progress", bg: "bg-yellow-50",  text: "text-yellow-700", bar: "bg-yellow-400" },
     completed:   { label: "Completed",   bg: "bg-green-50",   text: "text-green-700",  bar: "bg-green-500" },
     invoiced:    { label: "Invoiced",    bg: "bg-orange-50",  text: "text-orange-700", bar: "bg-orange-400" },

@@ -4,8 +4,8 @@ import { findRow, findRows } from "@/lib/sheets";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-const STEPS = ["new", "in_progress", "completed", "invoiced", "paid"];
-const STEP_LABELS = ["Submitted", "In Progress", "Completed", "Invoiced", "Paid"];
+const STEPS = ["new", "ready", "in_progress", "completed", "invoiced", "paid"];
+const STEP_LABELS = ["Submitted", "Ready", "In Progress", "Completed", "Invoiced", "Paid"];
 
 export default async function ClientPortalPage() {
   const session = await getServerSession(authOptions);
@@ -13,7 +13,7 @@ export default async function ClientPortalPage() {
   if (session.user.role !== "client") redirect("/dashboard");
 
   const [jobs, tenant] = await Promise.all([
-    findRows("Jobs", (r) => r.agentEmail === session.user.email),
+    findRows("Jobs", (r) => r.agentEmail === session.user.email && r.tenantId === session.user.tenantId),
     findRow("Tenants", (r) => r.id === session.user.tenantId),
   ]);
   const sortedJobs = [...jobs].sort(

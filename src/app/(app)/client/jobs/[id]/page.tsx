@@ -6,8 +6,8 @@ import Link from "next/link";
 import ChatPanel from "@/components/chat/ChatPanel";
 import QuoteApproveActions from "@/components/jobs/QuoteApproveActions";
 
-const STEPS = ["new", "in_progress", "completed", "invoiced", "paid"];
-const STEP_LABELS = ["Submitted", "In Progress", "Completed", "Invoiced", "Paid"];
+const STEPS = ["new", "ready", "in_progress", "completed", "invoiced", "paid"];
+const STEP_LABELS = ["Submitted", "Ready", "In Progress", "Completed", "Invoiced", "Paid"];
 
 export default async function ClientJobDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions);
@@ -24,8 +24,8 @@ export default async function ClientJobDetailPage({ params }: { params: Promise<
 
   if (!job) notFound();
 
-  // Security: clients can only see their own jobs
-  if (job.agentEmail !== session.user.email) notFound();
+  // Security: clients can only see their own jobs within their tenant
+  if (job.agentEmail !== session.user.email || job.tenantId !== session.user.tenantId) notFound();
 
   const messages = thread
     ? await findRows("Messages", (r) => r.threadId === thread.id)
