@@ -212,7 +212,7 @@ export default async function DashboardPage() {
               {role === "super_admin" ? "Global overview — all companies" : session.user.tenantName}
             </p>
           </div>
-          {(role === "operations_manager" || role === "super_admin") && (
+          {role === "operations_manager" && (
             <Link
               href="/jobs/new"
               className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors text-sm shadow-sm shrink-0"

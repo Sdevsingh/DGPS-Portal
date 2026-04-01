@@ -21,8 +21,8 @@ export async function POST(req: NextRequest) {
   const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
   const resetUrl = `${baseUrl}/reset-password?token=${token}`;
 
-  await resend.emails.send({
-    from: "DGPS Operations <noreply@dgps.com.au>",
+  const { error } = await resend.emails.send({
+    from: "DGPS Operations <onboarding@resend.dev>",
     to: email,
     subject: "Reset your password",
     html: `
@@ -40,6 +40,11 @@ export async function POST(req: NextRequest) {
       </div>
     `,
   });
+
+  if (error) {
+    console.error("[forgot-password] Resend error:", error);
+    return NextResponse.json({ error: "Failed to send email. Please try again." }, { status: 500 });
+  }
 
   return NextResponse.json({ ok: true });
 }

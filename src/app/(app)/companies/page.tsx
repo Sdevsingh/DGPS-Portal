@@ -5,15 +5,28 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import CreateCompanyButton from "@/components/companies/CreateCompanyButton";
 
+type Tenant = {
+  id: string;
+  name: string;
+  slug: string;
+  email: string;
+  phone: string;
+  address: string;
+  createdAt: string;
+};
+
+type Job = { id: string; tenantId: string; jobStatus: string };
+type User = { id: string; tenantId: string };
+
 export default async function CompaniesPage() {
   const session = await getServerSession(authOptions);
   if (!session) redirect("/login");
   if (session.user.role !== "super_admin") redirect("/dashboard");
 
   const [tenants, allJobs, allUsers] = await Promise.all([
-    getRows("Tenants"),
-    getRows("Jobs"),
-    getRows("Users"),
+    getRows("Tenants") as Promise<Tenant[]>,
+    getRows("Jobs") as Promise<Job[]>,
+    getRows("Users") as Promise<User[]>,
   ]);
 
   // Deduplicate tenants by id (running seed multiple times creates duplicates)

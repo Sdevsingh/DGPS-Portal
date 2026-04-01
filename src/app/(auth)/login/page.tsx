@@ -40,12 +40,17 @@ export default function LoginPage() {
   async function handleForgot(e: React.FormEvent) {
     e.preventDefault();
     setForgotLoading(true);
-    await fetch("/api/auth/forgot-password", {
+    const res = await fetch("/api/auth/forgot-password", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: forgotEmail }),
     });
     setForgotLoading(false);
+    if (!res.ok) {
+      const data = await res.json();
+      setError(data.error ?? "Failed to send reset email. Please try again.");
+      return;
+    }
     setForgotSent(true);
   }
 
@@ -59,7 +64,7 @@ export default function LoginPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
             </svg>
           </div>
-          <span className="text-white font-bold text-lg">Domain Group</span>
+          <span className="text-white font-bold text-lg">Domain Group Property Services</span>
         </div>
 
         <div>
@@ -84,7 +89,7 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <p className="text-blue-300 text-sm">© 2025 Domain Group Plumbing & Services</p>
+        <p className="text-blue-300 text-sm">© 2026 Domain Group Property Services</p>
       </div>
 
       {/* Right panel - form */}
