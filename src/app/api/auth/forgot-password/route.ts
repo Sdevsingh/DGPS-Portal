@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { findRow, appendRow } from "@/lib/sheets";
+import { findRow, appendRow, ensureTab } from "@/lib/sheets";
 import { Resend } from "resend";
 import crypto from "crypto";
 
@@ -16,14 +16,19 @@ export async function POST(req: NextRequest) {
   const token = crypto.randomBytes(32).toString("hex");
   const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour
 
+  await ensureTab("PasswordResets");
   await appendRow("PasswordResets", { email, token, expiresAt, used: "false" });
 
   const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
   const resetUrl = `${baseUrl}/reset-password?token=${token}`;
 
+  // In dev/prototype mode without a verified domain, Resend only allows
+  // sending to the account owner's email. Override recipient if set.
+  const toEmail = process.env.RESEND_TEST_EMAIL ?? email;
+
   const { error } = await resend.emails.send({
     from: "DGPS Operations <onboarding@resend.dev>",
-    to: email,
+    to: toEmail,
     subject: "Reset your password",
     html: `
       <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;">

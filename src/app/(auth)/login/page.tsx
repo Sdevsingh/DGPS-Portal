@@ -37,7 +37,7 @@ export default function LoginPage() {
     }
   }
 
-  async function handleForgot(e: React.FormEvent) {
+  async function handleForgot(e: React.SyntheticEvent) {
     e.preventDefault();
     setForgotLoading(true);
     const res = await fetch("/api/auth/forgot-password", {
@@ -157,23 +157,24 @@ export default function LoginPage() {
                     If the email is registered, you&apos;ll receive a reset link shortly. Check your inbox.
                   </p>
                 ) : (
-                  <form onSubmit={handleForgot} className="mt-2 space-y-2">
+                  <div className="mt-2 space-y-2">
                     <input
                       type="email"
-                      required
                       placeholder="your@email.com"
                       value={forgotEmail}
                       onChange={(e) => setForgotEmail(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && forgotEmail && handleForgot(e)}
                       className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
                     />
                     <button
-                      type="submit"
-                      disabled={forgotLoading}
+                      type="button"
+                      onClick={handleForgot}
+                      disabled={forgotLoading || !forgotEmail}
                       className="w-full py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-semibold rounded-lg transition-colors"
                     >
                       {forgotLoading ? "Sending…" : "Send reset link"}
                     </button>
-                  </form>
+                  </div>
                 )}
               </div>
             )}
