@@ -4,7 +4,7 @@
  * All responses are formatted to camelCase for backward compatibility.
  */
 
-import { supabaseAdmin } from "./supabase";
+import { supabaseAdmin } from "./supabase-server";
 
 // ─── Inspection Required mapping ─────────────────────────────────────────────
 

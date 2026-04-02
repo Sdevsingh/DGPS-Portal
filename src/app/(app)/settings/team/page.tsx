@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase-server";
 import { formatUser, formatTenant } from "@/lib/db";
 import { redirect } from "next/navigation";
 import TeamManagement from "@/components/settings/TeamManagement";

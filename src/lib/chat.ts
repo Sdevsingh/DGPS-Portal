@@ -1,4 +1,4 @@
-import { supabaseAdmin } from "./supabase";
+import { supabaseAdmin } from "./supabase-server";
 import { formatThread } from "./db";
 
 export async function ensureChatThreadForJob(jobId: string, tenantId: string) {

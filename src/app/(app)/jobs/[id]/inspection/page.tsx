@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase-server";
 import { formatJob, formatInspection } from "@/lib/db";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
