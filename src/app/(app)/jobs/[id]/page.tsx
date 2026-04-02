@@ -7,6 +7,7 @@ import ChatPanel from "@/components/chat/ChatPanel";
 import JobActions from "@/components/jobs/JobActions";
 import QuotePanel from "@/components/jobs/QuotePanel";
 import AssignTechnician from "@/components/jobs/AssignTechnician";
+import { ensureChatThreadForJob } from "@/lib/chat";
 
 const STATUS_STYLE: Record<string, string> = {
   new: "bg-blue-100 text-blue-700",
@@ -36,7 +37,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
   const { id } = await params;
   const { role, tenantId } = session.user;
 
-  const [job, thread, quoteItems] = await Promise.all([
+  const [job, existingThread, quoteItems] = await Promise.all([
     findRow("Jobs", (r) => r.id === id),
     findRow("ChatThreads", (r) => r.jobId === id),
     findRows("QuoteItems", (r) => r.jobId === id),
@@ -44,6 +45,8 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
 
   if (!job) notFound();
   if (role !== "super_admin" && job.tenantId !== tenantId) notFound();
+
+  const thread = existingThread ?? await ensureChatThreadForJob(job.id, job.tenantId);
 
   const messages = thread
     ? await findRows("Messages", (r) => r.threadId === thread.id)
@@ -104,6 +107,10 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
               </span>
             </DetailRow>
             <DetailRow label="Source" value={job.source ? job.source.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "—"} />
+            <DetailRow
+              label="Created By"
+              value={job.createdByName || (job.source === "public_form" ? "Client Request Form" : "Team")}
+            />
             <DetailRow label="Agent" value={job.agentName || "—"} />
             <DetailRow label="Contact" value={job.agentContact || "—"} />
             {job.assignedToName && (

@@ -3,11 +3,13 @@
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [tenantSlug, setTenantSlug] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showForgot, setShowForgot] = useState(false);
@@ -19,9 +21,14 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     setError("");
-    const res = await signIn("credentials", { email, password, redirect: false });
+    const res = await signIn("credentials", {
+      email,
+      password,
+      tenantSlug: tenantSlug.trim(),
+      redirect: false,
+    });
     if (res?.error) {
-      setError("Invalid email or password");
+      setError("Invalid login details. If this email exists in multiple companies, enter the company slug.");
       setLoading(false);
     } else {
       // Fetch session to check role
@@ -149,6 +156,22 @@ export default function LoginPage() {
               />
             </div>
 
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                Company Slug (optional)
+              </label>
+              <input
+                type="text"
+                value={tenantSlug}
+                onChange={(e) => setTenantSlug(e.target.value)}
+                className="w-full px-4 py-3 bg-gray-900 border border-gray-800 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                placeholder="e.g. metro-maintenance or dgps"
+              />
+              <p className="text-[11px] text-gray-500 mt-1.5">
+                Only required if the same email is used in more than one company.
+              </p>
+            </div>
+
             {showForgot && (
               <div className="p-4 bg-blue-600/10 border border-blue-500/30 rounded-xl">
                 <p className="text-sm font-semibold text-blue-300 mb-1">Reset your password</p>
@@ -200,7 +223,11 @@ export default function LoginPage() {
                 <button
                   key={a.email}
                   type="button"
-                  onClick={() => { setEmail(a.email); setPassword("password123"); }}
+                  onClick={() => {
+                    setEmail(a.email);
+                    setPassword("password123");
+                    setTenantSlug("dgps");
+                  }}
                   className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-800 transition-colors"
                 >
                   <span className="text-xs text-gray-300 font-medium">{a.email}</span>
@@ -213,12 +240,12 @@ export default function LoginPage() {
           <div className="mt-6 text-center">
             <p className="text-xs text-gray-600">
               New client?{" "}
-              <a
+              <Link
                 href="/request/dgps"
                 className="text-blue-400 hover:text-blue-300 font-medium transition-colors"
               >
                 Submit a job request →
-              </a>
+              </Link>
             </p>
           </div>
         </div>

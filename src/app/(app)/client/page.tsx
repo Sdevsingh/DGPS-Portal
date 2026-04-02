@@ -13,7 +13,15 @@ export default async function ClientPortalPage() {
   if (session.user.role !== "client") redirect("/dashboard");
 
   const [jobs, tenant] = await Promise.all([
-    findRows("Jobs", (r) => r.agentEmail === session.user.email && r.tenantId === session.user.tenantId),
+    findRows(
+      "Jobs",
+      (r) =>
+        r.tenantId === session.user.tenantId &&
+        (
+          r.agentEmail?.toLowerCase() === session.user.email?.toLowerCase() ||
+          r.createdByUserId === session.user.id
+        )
+    ),
     findRow("Tenants", (r) => r.id === session.user.tenantId),
   ]);
   const sortedJobs = [...jobs].sort(

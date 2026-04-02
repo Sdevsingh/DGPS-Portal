@@ -7,7 +7,7 @@ export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { role, tenantId } = session.user;
+  const { role, tenantId, id: userId } = session.user;
   const { searchParams } = new URL(req.url);
 
   const filterTenantId = role === "super_admin"
@@ -19,8 +19,6 @@ export async function GET(req: NextRequest) {
   const priority = searchParams.get("priority");
   const paymentStatus = searchParams.get("paymentStatus");
   const inspectionRequired = searchParams.get("inspectionRequired");
-
-  const { id: userId } = session.user;
 
   const jobs = await findRows("Jobs", (row) => {
     if (filterTenantId && row.tenantId !== filterTenantId) return false;
@@ -58,7 +56,7 @@ export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { role, tenantId } = session.user;
+  const { role, tenantId, id: userId, name: userName } = session.user;
   if (role === "client") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await req.json();
@@ -93,6 +91,9 @@ export async function POST(req: NextRequest) {
     quoteTotalWithGst: "",
     inspectionRequired: body.inspectionRequired ?? "false",
     notes: "",
+    createdByUserId: userId,
+    createdByName: userName,
+    createdByRole: role,
   });
 
   // Auto-create chat thread
