@@ -58,15 +58,6 @@ export default function JobActions({ job, role }: { job: Job; role: string }) {
       {/* Ops/Admin: job workflow */}
       {isOpsOrAdmin && (
         <div className="space-y-2">
-          {job.jobStatus === "new" && (
-            <button
-              onClick={() => updateJob({ jobStatus: "ready" })}
-              disabled={!!loading}
-              className="w-full py-2.5 bg-purple-600 hover:bg-purple-700 disabled:opacity-60 text-white font-medium rounded-xl transition-colors"
-            >
-              {loading === "jobStatus" ? "..." : "Mark Ready"}
-            </button>
-          )}
           {(job.jobStatus === "ready" || job.jobStatus === "new") && (
             <button
               onClick={() => updateJob({ jobStatus: "in_progress" })}

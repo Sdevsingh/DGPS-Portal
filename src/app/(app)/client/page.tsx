@@ -4,8 +4,13 @@ import { findRow, findRows } from "@/lib/sheets";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-const STEPS = ["new", "ready", "in_progress", "completed", "invoiced", "paid"];
-const STEP_LABELS = ["Submitted", "Ready", "In Progress", "Completed", "Invoiced", "Paid"];
+const STEPS = ["new", "in_progress", "completed", "invoiced", "paid"];
+const STEP_LABELS = ["Submitted", "In Progress", "Completed", "Invoiced", "Paid"];
+
+function normalizeClientStatus(status: string): string {
+  if (status === "ready") return "in_progress";
+  return status;
+}
 
 export default async function ClientPortalPage() {
   const session = await getServerSession(authOptions);
@@ -27,6 +32,9 @@ export default async function ClientPortalPage() {
   const sortedJobs = [...jobs].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
+  const activeJobs = jobs.filter((j) => !["paid", "completed"].includes(normalizeClientStatus(j.jobStatus))).length;
+  const quoteWaiting = jobs.filter((j) => j.quoteStatus === "sent").length;
+  const completedJobs = jobs.filter((j) => ["completed", "paid"].includes(normalizeClientStatus(j.jobStatus))).length;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -51,8 +59,23 @@ export default async function ClientPortalPage() {
       </div>
 
       <div className="px-4 py-6 max-w-2xl mx-auto space-y-4">
+        <div className="grid grid-cols-3 gap-3">
+          <div className="bg-white border border-gray-200 rounded-2xl p-3">
+            <p className="text-xs text-gray-500">Active</p>
+            <p className="text-xl font-bold text-gray-900">{activeJobs}</p>
+          </div>
+          <div className="bg-white border border-gray-200 rounded-2xl p-3">
+            <p className="text-xs text-gray-500">Awaiting You</p>
+            <p className="text-xl font-bold text-blue-700">{quoteWaiting}</p>
+          </div>
+          <div className="bg-white border border-gray-200 rounded-2xl p-3">
+            <p className="text-xs text-gray-500">Completed</p>
+            <p className="text-xl font-bold text-emerald-700">{completedJobs}</p>
+          </div>
+        </div>
+
         {sortedJobs.map((job) => {
-          const stepIndex = STEPS.indexOf(job.jobStatus);
+          const stepIndex = STEPS.indexOf(normalizeClientStatus(job.jobStatus));
           const hasQuote = job.quoteAmount && Number(job.quoteAmount) > 0;
           return (
             <Link

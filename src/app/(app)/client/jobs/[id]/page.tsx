@@ -7,8 +7,13 @@ import ChatPanel from "@/components/chat/ChatPanel";
 import QuoteApproveActions from "@/components/jobs/QuoteApproveActions";
 import { ensureChatThreadForJob } from "@/lib/chat";
 
-const STEPS = ["new", "ready", "in_progress", "completed", "invoiced", "paid"];
-const STEP_LABELS = ["Submitted", "Ready", "In Progress", "Completed", "Invoiced", "Paid"];
+const STEPS = ["new", "in_progress", "completed", "invoiced", "paid"];
+const STEP_LABELS = ["Submitted", "In Progress", "Completed", "Invoiced", "Paid"];
+
+function normalizeClientStatus(status: string): string {
+  if (status === "ready") return "in_progress";
+  return status;
+}
 
 export default async function ClientJobDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions);
@@ -44,7 +49,7 @@ export default async function ClientJobDetailPage({ params }: { params: Promise<
     (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
   );
 
-  const stepIndex = STEPS.indexOf(job.jobStatus);
+  const stepIndex = STEPS.indexOf(normalizeClientStatus(job.jobStatus));
   const hasQuote = job.quoteAmount && Number(job.quoteAmount) > 0;
 
   return (

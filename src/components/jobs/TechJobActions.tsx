@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 
 const STATUS_TRANSITIONS: Record<string, { next: string; label: string; color: string }> = {
   new: { next: "in_progress", label: "Start Job", color: "bg-yellow-500 hover:bg-yellow-600" },
-  ready: { next: "in_progress", label: "Start Job", color: "bg-yellow-500 hover:bg-yellow-600" },
   in_progress: { next: "completed", label: "Mark Completed", color: "bg-green-600 hover:bg-green-700" },
 };
 

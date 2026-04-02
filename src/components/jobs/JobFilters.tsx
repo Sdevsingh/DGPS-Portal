@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 const JOB_STATUS_OPTIONS = [
   { value: "", label: "All Statuses" },
   { value: "new", label: "New" },
-  { value: "ready", label: "Ready" },
   { value: "in_progress", label: "In Progress" },
   { value: "completed", label: "Completed" },
   { value: "invoiced", label: "Invoiced" },
@@ -100,6 +99,37 @@ export default function JobFilters() {
           </svg>
         </div>
       </div>
+
+      <button
+        onClick={() => handleSelect("priority", priority === "high" ? "" : "high")}
+        className={`shrink-0 px-3 py-2 text-sm rounded-xl border font-medium transition-all ${
+          priority === "high"
+            ? "bg-red-600 text-white border-red-600"
+            : "bg-white border-gray-200 text-gray-700 hover:border-red-300"
+        }`}
+      >
+        High Priority
+      </button>
+      <button
+        onClick={() => handleSelect("priority", priority === "medium" ? "" : "medium")}
+        className={`shrink-0 px-3 py-2 text-sm rounded-xl border font-medium transition-all ${
+          priority === "medium"
+            ? "bg-yellow-500 text-white border-yellow-500"
+            : "bg-white border-gray-200 text-gray-700 hover:border-yellow-300"
+        }`}
+      >
+        Medium
+      </button>
+      <button
+        onClick={() => handleSelect("priority", priority === "low" ? "" : "low")}
+        className={`shrink-0 px-3 py-2 text-sm rounded-xl border font-medium transition-all ${
+          priority === "low"
+            ? "bg-green-600 text-white border-green-600"
+            : "bg-white border-gray-200 text-gray-700 hover:border-green-300"
+        }`}
+      >
+        Low
+      </button>
 
       {/* Inspection toggle pill */}
       <button
