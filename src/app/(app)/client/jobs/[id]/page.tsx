@@ -7,8 +7,18 @@ import ChatPanel from "@/components/chat/ChatPanel";
 import QuoteApproveActions from "@/components/jobs/QuoteApproveActions";
 import { ensureChatThreadForJob } from "@/lib/chat";
 
-const STEPS = ["new", "in_progress", "completed", "invoiced", "paid"];
-const STEP_LABELS = ["Submitted", "In Progress", "Completed", "Invoiced", "Paid"];
+const PRIORITY_STYLE: Record<string, string> = {
+  high: "bg-red-100 text-red-700",
+  medium: "bg-yellow-100 text-yellow-700",
+  low: "bg-emerald-100 text-emerald-700",
+};
+const STATUS_STYLE: Record<string, string> = {
+  new: "bg-blue-100 text-blue-700",
+  in_progress: "bg-amber-100 text-amber-700",
+  completed: "bg-green-100 text-green-700",
+  invoiced: "bg-orange-100 text-orange-700",
+  paid: "bg-emerald-100 text-emerald-700",
+};
 
 function normalizeClientStatus(status: string): string {
   if (status === "ready") return "in_progress";
@@ -49,13 +59,13 @@ export default async function ClientJobDetailPage({ params }: { params: Promise<
     (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
   );
 
-  const stepIndex = STEPS.indexOf(normalizeClientStatus(job.jobStatus));
+  const normalizedStatus = normalizeClientStatus(job.jobStatus);
   const hasQuote = job.quoteAmount && Number(job.quoteAmount) > 0;
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 sticky top-14 z-10">
+      <div className="bg-white border-b border-gray-200 sticky top-14 z-10 shadow-sm">
         <div className="max-w-2xl mx-auto px-4 py-4 flex items-center gap-3">
           <Link
             href="/client"
@@ -69,6 +79,12 @@ export default async function ClientJobDetailPage({ params }: { params: Promise<
             <p className="font-bold text-gray-900 truncate">{job.propertyAddress}</p>
             <p className="text-xs text-gray-400">{job.jobNumber} · {job.category}</p>
           </div>
+          <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${PRIORITY_STYLE[job.priority] ?? "bg-gray-100 text-gray-600"}`}>
+            {job.priority || "medium"}
+          </span>
+          <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${STATUS_STYLE[normalizedStatus] ?? "bg-gray-100 text-gray-600"}`}>
+            {(normalizedStatus || "new").replace(/_/g, " ")}
+          </span>
           {job.inspectionRequired === "true" && (
             <span className="text-xs bg-purple-100 text-purple-700 px-2.5 py-1 rounded-full font-medium whitespace-nowrap">
               Inspection
@@ -78,42 +94,34 @@ export default async function ClientJobDetailPage({ params }: { params: Promise<
       </div>
 
       <div className="max-w-2xl mx-auto px-4 py-5 space-y-4">
-        {/* Status timeline */}
+        {/* Status summary */}
         <div className="bg-white rounded-2xl border border-gray-200 p-5">
-          <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-4">Job Status</p>
-          <div className="flex items-center gap-1 mb-3">
-            {STEPS.map((step, i) => (
-              <div key={step} className="flex items-center flex-1">
-                <div
-                  className={`w-3 h-3 rounded-full shrink-0 border-2 ${
-                    i < stepIndex
-                      ? "bg-blue-600 border-blue-600"
-                      : i === stepIndex
-                      ? "bg-blue-600 border-blue-600 ring-4 ring-blue-100"
-                      : "bg-white border-gray-300"
-                  }`}
-                />
-                {i < STEPS.length - 1 && (
-                  <div
-                    className={`flex-1 h-0.5 mx-1 ${
-                      i < stepIndex ? "bg-blue-600" : "bg-gray-200"
-                    }`}
-                  />
-                )}
-              </div>
-            ))}
+          <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-3">Job Status</p>
+          <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+            <p className="text-sm font-semibold text-gray-900 capitalize">
+              {(normalizedStatus || "new").replace(/_/g, " ")}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+              We&apos;ll notify you here whenever the status changes.
+            </p>
           </div>
-          <div className="flex justify-between">
-            {STEP_LABELS.map((label, i) => (
-              <p
-                key={label}
-                className={`text-xs text-center flex-1 ${
-                  i === stepIndex ? "text-blue-600 font-semibold" : "text-gray-400"
-                }`}
-              >
-                {label}
-              </p>
-            ))}
+        </div>
+
+        {/* Key details */}
+        <div className="grid grid-cols-3 gap-3">
+          <div className="bg-white rounded-2xl border border-gray-200 p-3">
+            <p className="text-[11px] text-gray-400 uppercase tracking-wide">Priority</p>
+            <p className="text-sm font-semibold text-gray-900 mt-1 capitalize">{job.priority || "medium"}</p>
+          </div>
+          <div className="bg-white rounded-2xl border border-gray-200 p-3">
+            <p className="text-[11px] text-gray-400 uppercase tracking-wide">Quote</p>
+            <p className="text-sm font-semibold text-gray-900 mt-1 capitalize">{job.quoteStatus || "pending"}</p>
+          </div>
+          <div className="bg-white rounded-2xl border border-gray-200 p-3">
+            <p className="text-[11px] text-gray-400 uppercase tracking-wide">Submitted</p>
+            <p className="text-sm font-semibold text-gray-900 mt-1">
+              {new Date(job.createdAt).toLocaleDateString("en-AU", { day: "numeric", month: "short" })}
+            </p>
           </div>
         </div>
 
@@ -201,7 +209,13 @@ export default async function ClientJobDetailPage({ params }: { params: Promise<
             </div>
             <div>
               <p className="font-semibold text-gray-900 text-sm">Messages</p>
-              <p className="text-xs text-gray-400">Chat with our team</p>
+              <p className="text-xs text-gray-400">
+                {thread.pendingOn === "team"
+                  ? "Our team will reply shortly"
+                  : thread.pendingOn === "client"
+                  ? "Waiting on your response"
+                  : "Chat with our team"}
+              </p>
             </div>
           </div>
           <div className="h-80">

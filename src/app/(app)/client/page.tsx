@@ -4,12 +4,17 @@ import { findRow, findRows } from "@/lib/sheets";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-const STEPS = ["new", "in_progress", "completed", "invoiced", "paid"];
-const STEP_LABELS = ["Submitted", "In Progress", "Completed", "Invoiced", "Paid"];
 const PRIORITY_STYLE: Record<string, string> = {
   high: "bg-red-100 text-red-700",
   medium: "bg-yellow-100 text-yellow-700",
   low: "bg-emerald-100 text-emerald-700",
+};
+const STATUS_STYLE: Record<string, string> = {
+  new: "bg-blue-100 text-blue-700",
+  in_progress: "bg-amber-100 text-amber-700",
+  completed: "bg-green-100 text-green-700",
+  invoiced: "bg-orange-100 text-orange-700",
+  paid: "bg-emerald-100 text-emerald-700",
 };
 
 type ClientView = "all" | "active" | "awaiting" | "completed";
@@ -73,6 +78,7 @@ export default async function ClientPortalPage({
     accent: string;
     border: string;
   }> = [
+    { view: "all", title: "All Jobs", value: jobs.length, accent: "text-gray-900", border: "border-gray-300" },
     { view: "active", title: "Active", value: activeJobs, accent: "text-gray-900", border: "border-blue-300" },
     { view: "awaiting", title: "Awaiting You", value: quoteWaiting, accent: "text-blue-700", border: "border-blue-300" },
     { view: "completed", title: "Completed", value: completedJobs, accent: "text-emerald-700", border: "border-emerald-300" },
@@ -113,7 +119,7 @@ export default async function ClientPortalPage({
       </div>
 
       <div className="px-4 py-6 max-w-3xl mx-auto space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {summaryCards.map((card) => {
             const isActiveFilter = currentView === card.view;
             return (
@@ -151,7 +157,7 @@ export default async function ClientPortalPage({
         </div>
 
         {filteredJobs.map((job) => {
-          const stepIndex = STEPS.indexOf(normalizeClientStatus(job.jobStatus));
+          const normalizedStatus = normalizeClientStatus(job.jobStatus);
           const hasQuote = job.quoteAmount && Number(job.quoteAmount) > 0;
           return (
             <Link
@@ -184,31 +190,26 @@ export default async function ClientPortalPage({
                     Declined
                   </span>
                 )}
+                {!hasQuote && (
+                  <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${STATUS_STYLE[normalizedStatus] ?? "bg-gray-100 text-gray-600"}`}>
+                    {(normalizedStatus || "new").replace(/_/g, " ")}
+                  </span>
+                )}
               </div>
 
-              {/* Status timeline */}
-              <div className="flex items-center gap-1 mb-3">
-                {STEPS.map((step, i) => (
-                  <div key={step} className="flex items-center flex-1">
-                    <div
-                      className={`w-2.5 h-2.5 rounded-full shrink-0 ${
-                        i <= stepIndex ? "bg-blue-600" : "bg-gray-200"
-                      }`}
-                    />
-                    {i < STEPS.length - 1 && (
-                      <div
-                        className={`flex-1 h-0.5 mx-0.5 ${
-                          i < stepIndex ? "bg-blue-600" : "bg-gray-200"
-                        }`}
-                      />
-                    )}
-                  </div>
-                ))}
-              </div>
-              <div className="flex justify-between">
-                <p className="text-xs text-blue-600 font-medium">
-                  {STEP_LABELS[Math.max(0, stepIndex)] ?? STEP_LABELS[0]}
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-gray-500">
+                  Status:{" "}
+                  <span className="font-semibold text-gray-800 capitalize">
+                    {(normalizedStatus || "new").replace(/_/g, " ")}
+                  </span>
                 </p>
+                <p className="text-xs text-gray-400">
+                  {new Date(job.createdAt).toLocaleDateString("en-AU", { day: "numeric", month: "short" })}
+                </p>
+              </div>
+              <div className="flex justify-between mt-2">
+                <p className="text-xs text-gray-400">Job updates available in chat</p>
                 {hasQuote && (
                   <p className="text-sm font-bold text-gray-900">
                     ${Number(job.quoteTotalWithGst).toFixed(2)}{" "}
