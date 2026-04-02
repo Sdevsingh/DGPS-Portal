@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { findRow, findRows, updateRow, appendRow, ensureTab } from "@/lib/sheets";
+import { supabaseAdmin } from "@/lib/supabase";
 import { Resend } from "resend";
 import crypto from "crypto";
 
@@ -9,32 +9,39 @@ export async function POST(req: NextRequest) {
   const { email } = await req.json();
   if (!email) return NextResponse.json({ error: "Email required" }, { status: 400 });
 
-  // Always return success to avoid email enumeration
-  const user = await findRow("Users", (r) => r.email === email && r.isActive === "true");
+  const { data: user } = await supabaseAdmin
+    .from("users")
+    .select("id, email")
+    .eq("email", email.toLowerCase())
+    .eq("is_active", true)
+    .single();
+
+  // Always return success to prevent email enumeration
   if (!user) return NextResponse.json({ ok: true });
 
   const token = crypto.randomBytes(32).toString("hex");
-  const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
 
-  await ensureTab("PasswordResets");
+  // Invalidate existing unused tokens
+  await supabaseAdmin
+    .from("password_resets")
+    .update({ used: true })
+    .eq("email", user.email)
+    .eq("used", false);
 
-  // Invalidate any existing unused tokens for this email
-  const existingTokens = await findRows("PasswordResets", (r) => r.email === email && r.used !== "true");
-  for (const t of existingTokens) {
-    await updateRow("PasswordResets", t.id, { used: "true" });
-  }
-
-  await appendRow("PasswordResets", { email, token, expiresAt, used: "false" });
+  await supabaseAdmin.from("password_resets").insert({
+    email: user.email,
+    token,
+    expires_at: expiresAt,
+    used: false,
+  });
 
   const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
   const resetUrl = `${baseUrl}/reset-password?token=${token}`;
-
-  // In dev/prototype mode without a verified domain, Resend only allows
-  // sending to the account owner's email. Override recipient if set.
-  const toEmail = process.env.RESEND_TEST_EMAIL ?? email;
+  const toEmail = process.env.RESEND_TEST_EMAIL ?? user.email;
 
   const { error } = await resend.emails.send({
-    from: "DGPS Operations <onboarding@resend.dev>",
+    from: `DGPS Operations <${process.env.RESEND_FROM ?? "onboarding@resend.dev"}>`,
     to: toEmail,
     subject: "Reset your password",
     html: `

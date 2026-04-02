@@ -1,13 +1,12 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { findRow } from "@/lib/sheets";
+import { supabaseAdmin } from "@/lib/supabase";
 import { registerClient, unregisterClient } from "@/lib/sse";
 
-// Never cache this route — it's a long-lived stream
 export const dynamic = "force-dynamic";
 
-const PING_INTERVAL_MS = 25_000; // 25 s — keeps proxies and browsers from closing idle connections
+const PING_INTERVAL_MS = 25_000;
 
 export async function GET(
   req: NextRequest,
@@ -17,22 +16,27 @@ export async function GET(
   if (!session) return new Response("Unauthorized", { status: 401 });
 
   const { threadId } = await params;
-  const { role, tenantId, id: userId, email } = session.user;
+  const { role, tenantId, id: userId, email, assignedTenantIds } = session.user;
 
-  const thread = await findRow("ChatThreads", (r) => r.id === threadId);
+  const { data: thread } = await supabaseAdmin
+    .from("chat_threads")
+    .select("*")
+    .eq("id", threadId)
+    .single();
+
   if (!thread) return new Response("Not found", { status: 404 });
-  if (role !== "super_admin" && thread.tenantId !== tenantId) {
-    return new Response("Forbidden", { status: 403 });
+
+  if (role !== "super_admin") {
+    const accessible = new Set([tenantId, ...(assignedTenantIds ?? [])]);
+    if (!accessible.has(thread.tenant_id)) return new Response("Forbidden", { status: 403 });
   }
+
   if (role === "client") {
-    const job = await findRow("Jobs", (r) => r.id === thread.jobId);
+    const { data: job } = await supabaseAdmin.from("jobs").select("*").eq("id", thread.job_id).single();
     if (!job) return new Response("Not found", { status: 404 });
     const canAccess =
-      job.tenantId === tenantId &&
-      (
-        job.agentEmail?.toLowerCase() === email?.toLowerCase() ||
-        job.createdByUserId === userId
-      );
+      job.agent_email?.toLowerCase() === email?.toLowerCase() ||
+      job.created_by_user_id === userId;
     if (!canAccess) return new Response("Forbidden", { status: 403 });
   }
 
@@ -41,10 +45,7 @@ export async function GET(
   const encoder = new TextEncoder();
 
   function cleanup() {
-    if (pingTimer) {
-      clearInterval(pingTimer);
-      pingTimer = null;
-    }
+    if (pingTimer) { clearInterval(pingTimer); pingTimer = null; }
     unregisterClient(threadId, streamController);
   }
 
@@ -52,31 +53,18 @@ export async function GET(
     start(controller) {
       streamController = controller;
       registerClient(threadId, controller);
-
-      // Tell the browser the connection is live
       controller.enqueue(encoder.encode(": connected\n\n"));
-
-      // Periodic ping — prevents proxy/browser from killing the idle stream
       pingTimer = setInterval(() => {
-        try {
-          controller.enqueue(encoder.encode(": ping\n\n"));
-        } catch {
-          cleanup();
-        }
+        try { controller.enqueue(encoder.encode(": ping\n\n")); }
+        catch { cleanup(); }
       }, PING_INTERVAL_MS);
     },
-    cancel() {
-      cleanup();
-    },
+    cancel() { cleanup(); },
   });
 
   req.signal.addEventListener("abort", () => {
     cleanup();
-    try {
-      streamController.close();
-    } catch {
-      // already closed — ignore
-    }
+    try { streamController.close(); } catch { /* ignore */ }
   });
 
   return new Response(stream, {
@@ -84,7 +72,7 @@ export async function GET(
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache, no-transform",
       Connection: "keep-alive",
-      "X-Accel-Buffering": "no", // disable Nginx / proxy buffering
+      "X-Accel-Buffering": "no",
     },
   });
 }

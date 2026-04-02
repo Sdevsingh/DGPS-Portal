@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { clearTabData } from "@/lib/sheets";
+import { supabaseAdmin } from "@/lib/supabase";
 
 export async function POST(req: NextRequest) {
   void req;
@@ -10,13 +10,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const clearedMessages = await clearTabData("Messages");
-  const clearedThreads = await clearTabData("ChatThreads");
+  await supabaseAdmin.from("messages").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+  await supabaseAdmin.from("chat_threads").delete().neq("id", "00000000-0000-0000-0000-000000000000");
 
-  return NextResponse.json({
-    status: "ok",
-    clearedMessages,
-    clearedThreads,
-    note: "All chat messages and threads deleted. Run npm run sheets:seed to restore demo data.",
-  });
+  return NextResponse.json({ status: "ok", note: "All chat messages and threads deleted." });
 }

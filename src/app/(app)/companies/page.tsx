@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { getRows } from "@/lib/sheets";
+import { supabaseAdmin } from "@/lib/supabase";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import CreateCompanyButton from "@/components/companies/CreateCompanyButton";
@@ -23,19 +23,23 @@ export default async function CompaniesPage() {
   if (!session) redirect("/login");
   if (session.user.role !== "super_admin") redirect("/dashboard");
 
-  const [tenants, allJobs, allUsers] = await Promise.all([
-    getRows("Tenants") as Promise<Tenant[]>,
-    getRows("Jobs") as Promise<Job[]>,
-    getRows("Users") as Promise<User[]>,
+  const [{ data: tenantsRaw }, { data: jobsRaw }, { data: usersRaw }] = await Promise.all([
+    supabaseAdmin.from("tenants").select("id, name, slug, email, phone, address, created_at").order("name"),
+    supabaseAdmin.from("jobs").select("id, tenant_id, job_status"),
+    supabaseAdmin.from("users").select("id, tenant_id"),
   ]);
 
-  // Deduplicate tenants by id (running seed multiple times creates duplicates)
-  const seenIds = new Set<string>();
-  const uniqueTenants = tenants.filter((t) => {
-    if (seenIds.has(t.id)) return false;
-    seenIds.add(t.id);
-    return true;
-  });
+  const allJobs = (jobsRaw ?? []).map((j) => ({ id: j.id, tenantId: j.tenant_id, jobStatus: j.job_status }));
+  const allUsers = (usersRaw ?? []).map((u) => ({ id: u.id, tenantId: u.tenant_id }));
+  const uniqueTenants = (tenantsRaw ?? []).map((t) => ({
+    id: t.id,
+    name: t.name,
+    slug: t.slug,
+    email: t.email ?? "",
+    phone: t.phone ?? "",
+    address: t.address ?? "",
+    createdAt: t.created_at ?? "",
+  }));
 
   const tenantsWithStats = uniqueTenants
     .map((t) => ({

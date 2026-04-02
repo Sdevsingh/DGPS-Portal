@@ -1,9 +1,8 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { getRows } from "@/lib/sheets";
+import { supabaseAdmin } from "@/lib/supabase";
+import { formatJob, formatThread, formatTenant } from "@/lib/db";
 import Link from "next/link";
-
-// ─── Icons ────────────────────────────────────────────────────────────────────
 
 function IconBriefcase() {
   return (
@@ -55,31 +54,16 @@ function IconPlus() {
   );
 }
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
-
-function MetricCard({
-  label,
-  value,
-  icon,
-  accent,
-  href,
-}: {
-  label: string;
-  value: number;
-  icon: React.ReactNode;
-  accent: string;
-  href?: string;
-}) {
+function MetricCard({ label, value, icon, accent, href }: { label: string; value: number; icon: React.ReactNode; accent: string; href?: string }) {
   const inner = (
-    <div className={`bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition-all group relative overflow-hidden`}>
-      {/* Accent bar */}
+    <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
       <div className={`absolute top-0 left-0 right-0 h-0.5 ${accent}`} />
       <div className="flex items-start justify-between">
         <div>
           <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">{label}</p>
           <p className="text-3xl font-bold text-gray-900 leading-none">{value}</p>
         </div>
-        <div className={`w-10 h-10 rounded-xl flex items-center justify-center bg-gray-50 text-gray-400 group-hover:scale-110 transition-transform`}>
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-gray-50 text-gray-400 group-hover:scale-110 transition-transform">
           {icon}
         </div>
       </div>
@@ -94,28 +78,9 @@ function MetricCard({
   return href ? <Link href={href}>{inner}</Link> : inner;
 }
 
-function AlertCard({
-  label,
-  value,
-  color,
-  bg,
-  border,
-  text,
-  href,
-}: {
-  label: string;
-  value: number;
-  color: string;
-  bg: string;
-  border: string;
-  text: string;
-  href: string;
-}) {
+function AlertCard({ label, value, color, bg, border, text, href }: { label: string; value: number; color: string; bg: string; border: string; text: string; href: string }) {
   return (
-    <Link
-      href={href}
-      className={`${bg} border ${border} rounded-2xl p-4 flex items-center justify-between group hover:shadow-md transition-all`}
-    >
+    <Link href={href} className={`${bg} border ${border} rounded-2xl p-4 flex items-center justify-between group hover:shadow-md transition-all`}>
       <div className="flex items-center gap-3">
         <div className={`w-9 h-9 rounded-xl ${bg} border ${border} flex items-center justify-center`}>
           <span className={`w-2.5 h-2.5 rounded-full ${color}`} />
@@ -125,58 +90,53 @@ function AlertCard({
           <p className={`text-2xl font-bold ${text} leading-tight`}>{value}</p>
         </div>
       </div>
-      <div className={`${text} opacity-30 group-hover:opacity-70 transition-opacity`}>
-        <IconChevron />
-      </div>
+      <div className={`${text} opacity-30 group-hover:opacity-70 transition-opacity`}><IconChevron /></div>
     </Link>
   );
 }
-
-// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
   if (!session) return null;
 
-  const { role, tenantId } = session.user;
+  const { role, tenantId, assignedTenantIds } = session.user;
 
-  const [allJobs, allThreads] = await Promise.all([
-    getRows("Jobs"),
-    getRows("ChatThreads"),
-  ]);
+  let jobQ = supabaseAdmin.from("jobs").select("id, job_number, job_status, quote_status, payment_status, priority, property_address, company_name, tenant_id, created_at");
+  let threadQ = supabaseAdmin.from("chat_threads").select("id, job_id, pending_on, response_due_time, tenant_id");
 
-  const jobs = role === "super_admin" ? allJobs : allJobs.filter((j) => j.tenantId === tenantId);
-  const threads = role === "super_admin" ? allThreads : allThreads.filter((t) => t.tenantId === tenantId);
+  if (role !== "super_admin") {
+    const accessible = Array.from(new Set([tenantId, ...(assignedTenantIds ?? [])]));
+    jobQ = jobQ.in("tenant_id", accessible);
+    threadQ = threadQ.in("tenant_id", accessible);
+  }
+
+  const [{ data: allJobsRaw }, { data: allThreadsRaw }] = await Promise.all([jobQ.order("created_at", { ascending: false }), threadQ]);
+
+  const allJobs = (allJobsRaw ?? []).map(formatJob);
+  const allThreads = (allThreadsRaw ?? []).map(formatThread);
 
   const now = new Date();
-
-  const totalJobs = jobs.length;
-  const newJobs = jobs.filter((j) => j.jobStatus === "new").length;
-  const inProgressJobs = jobs.filter((j) => j.jobStatus === "in_progress").length;
-  const completedJobs = jobs.filter((j) => j.jobStatus === "completed").length;
-  const pendingQuotes = jobs.filter((j) => j.quoteStatus === "pending").length;
-  const needsTeamResponse = threads.filter((t) => t.pendingOn === "team").length;
-  const needsClientResponse = threads.filter((t) => t.pendingOn === "client").length;
-  const overdueChats = threads.filter((t) => t.pendingOn !== "none" && t.responseDueTime && new Date(t.responseDueTime) < now).length;
-
+  const totalJobs = allJobs.length;
+  const newJobs = allJobs.filter((j) => j.jobStatus === "new").length;
+  const inProgressJobs = allJobs.filter((j) => j.jobStatus === "in_progress").length;
+  const completedJobs = allJobs.filter((j) => j.jobStatus === "completed").length;
+  const pendingQuotes = allJobs.filter((j) => j.quoteStatus === "pending").length;
+  const needsTeamResponse = allThreads.filter((t) => t.pendingOn === "team").length;
+  const needsClientResponse = allThreads.filter((t) => t.pendingOn === "client").length;
+  const overdueChats = allThreads.filter((t) => t.pendingOn !== "none" && t.responseDueTime && new Date(t.responseDueTime) < now).length;
   const totalAttention = needsTeamResponse + needsClientResponse + overdueChats;
 
-  const recentJobs = [...jobs]
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 6);
-
+  const recentJobs = allJobs.slice(0, 6);
   const threadMap = new Map(allThreads.map((t) => [t.jobId, t]));
 
   let companyStats: { id: string; name: string; count: number }[] = [];
   if (role === "super_admin") {
-    const tenants = await getRows("Tenants");
-    companyStats = tenants
-      .map((t) => ({
-        id: t.id,
-        name: t.name,
-        count: allJobs.filter((j) => j.tenantId === t.id).length,
-      }))
-      .sort((a, b) => b.count - a.count);
+    const { data: tenants } = await supabaseAdmin.from("tenants").select("id, name");
+    companyStats = (tenants ?? []).map((t) => ({
+      id: t.id,
+      name: t.name,
+      count: allJobs.filter((j) => j.tenantId === t.id).length,
+    })).sort((a, b) => b.count - a.count);
   }
 
   const statusConfig: Record<string, { label: string; bg: string; text: string; bar: string }> = {
@@ -188,46 +148,32 @@ export default async function DashboardPage() {
     paid:        { label: "Paid",        bg: "bg-emerald-50", text: "text-emerald-700",bar: "bg-emerald-500" },
   };
 
-  const priorityDot: Record<string, string> = {
-    high: "bg-red-500",
-    medium: "bg-yellow-400",
-    low: "bg-green-400",
-  };
+  const priorityDot: Record<string, string> = { high: "bg-red-500", medium: "bg-yellow-400", low: "bg-green-400" };
 
-  // Greeting
   const hour = now.getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   const dateStr = now.toLocaleDateString("en-AU", { weekday: "long", day: "numeric", month: "long" });
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* ── Hero header ── */}
       <div className="bg-white border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-6 md:px-8 py-6 flex items-center justify-between gap-4">
           <div>
             <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-0.5">{dateStr}</p>
-            <h1 className="text-2xl font-bold text-gray-900">
-              {greeting}, {session.user.name?.split(" ")[0]} 👋
-            </h1>
+            <h1 className="text-2xl font-bold text-gray-900">{greeting}, {session.user.name?.split(" ")[0]}</h1>
             <p className="text-sm text-gray-500 mt-0.5">
               {role === "super_admin" ? "Global overview — all companies" : session.user.tenantName}
             </p>
           </div>
           {role === "operations_manager" && (
-            <Link
-              href="/jobs/new"
-              className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors text-sm shadow-sm shrink-0"
-            >
-              <IconPlus />
-              New Job
+            <Link href="/jobs/new" className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors text-sm shadow-sm shrink-0">
+              <IconPlus />New Job
             </Link>
           )}
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-6 md:px-8 py-6 space-y-6">
-
-        {/* ── Attention required ── */}
         {totalAttention > 0 && (
           <div>
             <div className="flex items-center gap-2 mb-3">
@@ -243,7 +189,6 @@ export default async function DashboardPage() {
           </div>
         )}
 
-        {/* ── Metric cards ── */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <MetricCard label="Total Jobs" value={totalJobs} icon={<IconBriefcase />} accent="bg-gray-200" href="/jobs" />
           <MetricCard label="New" value={newJobs} icon={<IconSpark />} accent="bg-blue-400" href="/jobs?status=new" />
@@ -251,7 +196,6 @@ export default async function DashboardPage() {
           <MetricCard label="Completed" value={completedJobs} icon={<IconCheck />} accent="bg-green-500" href="/jobs?status=completed" />
         </div>
 
-        {/* ── Job status pipeline ── */}
         {totalJobs > 0 && (
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
             <div className="flex items-center justify-between mb-4">
@@ -260,17 +204,14 @@ export default async function DashboardPage() {
             </div>
             <div className="space-y-3">
               {Object.entries(statusConfig).map(([status, cfg]) => {
-                const count = jobs.filter((j) => j.jobStatus === status).length;
+                const count = allJobs.filter((j) => j.jobStatus === status).length;
                 if (count === 0) return null;
                 const pct = Math.round((count / totalJobs) * 100);
                 return (
                   <Link key={status} href={`/jobs?status=${status}`} className="flex items-center gap-3 group">
                     <span className={`text-xs font-medium ${cfg.text} w-24 shrink-0`}>{cfg.label}</span>
                     <div className="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden">
-                      <div
-                        className={`${cfg.bar} h-2 rounded-full transition-all duration-500`}
-                        style={{ width: `${pct}%` }}
-                      />
+                      <div className={`${cfg.bar} h-2 rounded-full transition-all duration-500`} style={{ width: `${pct}%` }} />
                     </div>
                     <span className="text-xs font-semibold text-gray-700 w-6 text-right">{count}</span>
                   </Link>
@@ -280,26 +221,17 @@ export default async function DashboardPage() {
           </div>
         )}
 
-        {/* ── Pending quotes alert ── */}
         {pendingQuotes > 0 && (
-          <Link
-            href="/jobs?quoteStatus=pending"
-            className="flex items-center gap-4 bg-purple-50 border border-purple-200 rounded-2xl px-5 py-4 hover:shadow-md transition-all group"
-          >
-            <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center shrink-0">
-              <IconChat />
-            </div>
+          <Link href="/jobs?quoteStatus=pending" className="flex items-center gap-4 bg-purple-50 border border-purple-200 rounded-2xl px-5 py-4 hover:shadow-md transition-all group">
+            <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center shrink-0"><IconChat /></div>
             <div className="flex-1">
               <p className="text-sm font-semibold text-purple-900">{pendingQuotes} quote{pendingQuotes !== 1 ? "s" : ""} awaiting preparation</p>
               <p className="text-xs text-purple-600 mt-0.5">Jobs received but no quote sent yet</p>
             </div>
-            <div className="text-purple-400 group-hover:text-purple-600 transition-colors shrink-0">
-              <IconChevron />
-            </div>
+            <div className="text-purple-400 group-hover:text-purple-600 transition-colors shrink-0"><IconChevron /></div>
           </Link>
         )}
 
-        {/* ── Super admin: company breakdown ── */}
         {role === "super_admin" && companyStats.length > 0 && (
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
             <div className="flex items-center justify-between mb-4">
@@ -317,10 +249,7 @@ export default async function DashboardPage() {
                     </div>
                     <span className="text-sm text-gray-700 w-44 truncate">{c.name}</span>
                     <div className="flex-1 bg-gray-100 rounded-full h-1.5 overflow-hidden">
-                      <div
-                        className={`${colors[i % colors.length]} h-1.5 rounded-full`}
-                        style={{ width: `${pct}%` }}
-                      />
+                      <div className={`${colors[i % colors.length]} h-1.5 rounded-full`} style={{ width: `${pct}%` }} />
                     </div>
                     <span className="text-sm font-semibold text-gray-900 w-6 text-right">{c.count}</span>
                   </Link>
@@ -330,7 +259,6 @@ export default async function DashboardPage() {
           </div>
         )}
 
-        {/* ── Recent jobs ── */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
           <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
             <h2 className="font-semibold text-gray-900">Recent Activity</h2>
@@ -342,47 +270,31 @@ export default async function DashboardPage() {
               const cfg = statusConfig[job.jobStatus];
               const needsReply = thread?.pendingOn === "team";
               return (
-                <Link
-                  key={job.id}
-                  href={`/jobs/${job.id}`}
-                  className="flex items-center gap-4 px-5 py-3.5 hover:bg-gray-50 transition-colors group"
-                >
+                <Link key={job.id} href={`/jobs/${job.id}`} className="flex items-center gap-4 px-5 py-3.5 hover:bg-gray-50 transition-colors group">
                   <span className={`w-2 h-2 rounded-full shrink-0 ${priorityDot[job.priority] ?? "bg-gray-300"}`} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm font-semibold text-gray-900">{job.jobNumber}</span>
-                      {role === "super_admin" && (
-                        <span className="text-xs text-gray-400">{job.companyName}</span>
-                      )}
-                      {needsReply && (
-                        <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-medium animate-pulse">
-                          Reply needed
-                        </span>
-                      )}
+                      {role === "super_admin" && <span className="text-xs text-gray-400">{job.companyName}</span>}
+                      {needsReply && <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-medium animate-pulse">Reply needed</span>}
                     </div>
                     <p className="text-xs text-gray-400 truncate mt-0.5">{job.propertyAddress}</p>
                   </div>
                   <span className={`text-xs px-2.5 py-1 rounded-full font-medium shrink-0 ${cfg?.bg ?? "bg-gray-100"} ${cfg?.text ?? "text-gray-600"}`}>
                     {job.jobStatus.replace(/_/g, " ")}
                   </span>
-                  <span className="text-gray-300 group-hover:text-gray-500 transition-colors shrink-0">
-                    <IconChevron />
-                  </span>
+                  <span className="text-gray-300 group-hover:text-gray-500 transition-colors shrink-0"><IconChevron /></span>
                 </Link>
               );
             })}
             {recentJobs.length === 0 && (
               <div className="px-5 py-14 text-center">
-                <div className="w-12 h-12 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                  <IconBriefcase />
-                </div>
+                <div className="w-12 h-12 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-3"><IconBriefcase /></div>
                 <p className="text-sm font-medium text-gray-500">No jobs yet</p>
-                <p className="text-xs text-gray-400 mt-1">Jobs will appear here once created</p>
               </div>
             )}
           </div>
         </div>
-
       </div>
     </div>
   );

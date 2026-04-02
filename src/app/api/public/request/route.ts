@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { findRow, findRows, appendRow } from "@/lib/sheets";
+import { supabaseAdmin } from "@/lib/supabase";
+import { formatJob } from "@/lib/db";
 import bcrypt from "bcryptjs";
 
-// Simple in-memory rate limiter (resets on server restart)
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
 function isRateLimited(ip: string): boolean {
@@ -25,125 +25,130 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
 
-  // Honeypot check (bots fill hidden field)
-  if (body._honeypot) {
-    return NextResponse.json({ ok: true }); // silently ignore bots
-  }
+  if (body._honeypot) return NextResponse.json({ ok: true });
 
-  const { tenantSlug, name, email, phone, propertyAddress, description, category, inspectionRequired, photoUrl, password } = body;
+  const { tenantSlug, name, email, phone, propertyAddress, description, category, inspectionRequired, password } = body;
 
-  // Required fields (password is NOT required here — see below)
   if (!tenantSlug || !name || !email || !phone || !propertyAddress || !description) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
-
-  // Validate email
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return NextResponse.json({ error: "Invalid email address" }, { status: 400 });
   }
 
-  // Look up tenant by slug
-  const tenant = await findRow("Tenants", (r) => r.slug === tenantSlug);
+  const { data: tenant } = await supabaseAdmin
+    .from("tenants")
+    .select("*")
+    .eq("slug", tenantSlug)
+    .single();
+
   if (!tenant) return NextResponse.json({ error: "Company not found" }, { status: 404 });
 
-  // Check if client already exists — BEFORE requiring password
-  // Returning clients and logged-in clients don't need to send a password
-  const existingClient = await findRow("Users", (r) => r.email === email && r.tenantId === tenant.id);
+  const { data: existingClient } = await supabaseAdmin
+    .from("users")
+    .select("id, name")
+    .eq("tenant_id", tenant.id)
+    .eq("email", email.toLowerCase())
+    .single();
 
-  // Only require password for brand-new clients
   if (!existingClient) {
-    if (!password || typeof password !== "string" || password.length < 8) {
+    if (!password || password.length < 8) {
       return NextResponse.json({ error: "Password must be at least 8 characters" }, { status: 400 });
     }
   }
 
   // Generate job number
-  const existingJobs = await findRows("Jobs", (r) => r.tenantId === tenant.id);
-  const jobNumber = `JOB-${String(existingJobs.length + 1).padStart(3, "0")}`;
+  const { data: existingJobs } = await supabaseAdmin
+    .from("jobs")
+    .select("job_number")
+    .eq("tenant_id", tenant.id);
 
-  const job = await appendRow("Jobs", {
-    tenantId: tenant.id,
-    jobNumber,
-    dateReceived: new Date().toISOString(),
-    companyName: tenant.name,
-    agentName: name,
-    agentContact: phone,
-    agentEmail: email,
-    propertyAddress,
-    description,
-    category: category ?? "General Maintenance",
-    priority: "medium",
-    source: "public_form",
-    jobStatus: "new",
-    quoteStatus: "pending",
-    paymentStatus: "unpaid",
-    inspectionRequired: inspectionRequired === true || inspectionRequired === "true" ? "true" : "false",
-    notes: "",
-    createdByUserId: existingClient?.id ?? "",
-    createdByName: name,
-    createdByRole: "client",
-  });
+  const maxNum = (existingJobs ?? []).reduce((m, j) => {
+    const n = parseInt(j.job_number?.split("-")[1] ?? "0", 10);
+    return Math.max(m, n);
+  }, 0);
+  const jobNumber = `JOB-${String(maxNum + 1).padStart(3, "0")}`;
+
+  const { data: job, error: jobError } = await supabaseAdmin
+    .from("jobs")
+    .insert({
+      tenant_id: tenant.id,
+      job_number: jobNumber,
+      date_received: new Date().toISOString(),
+      company_name: tenant.name,
+      agent_name: name,
+      agent_contact: phone,
+      agent_email: email.toLowerCase(),
+      property_address: propertyAddress,
+      description,
+      category: category ?? "General Maintenance",
+      priority: "medium",
+      source: "public_form",
+      job_status: "new",
+      quote_status: "pending",
+      payment_status: "unpaid",
+      inspection_required: inspectionRequired === true || inspectionRequired === "true" ? "required" : "not_required",
+      created_by_user_id: existingClient?.id ?? null,
+      created_by_name: name,
+      created_by_role: "client",
+    })
+    .select()
+    .single();
+
+  if (jobError || !job) {
+    return NextResponse.json({ error: "Failed to create job" }, { status: 500 });
+  }
 
   // Create chat thread
-  const thread = await appendRow("ChatThreads", {
-    tenantId: tenant.id,
-    jobId: job.id,
-    pendingOn: "team",
-    lastMessage: `New request submitted by ${name}`,
-    lastMessageAt: new Date().toISOString(),
-    lastMessageBy: "client",
-  });
+  const { data: thread } = await supabaseAdmin
+    .from("chat_threads")
+    .insert({
+      tenant_id: tenant.id,
+      job_id: job.id,
+      pending_on: "team",
+      last_message: `New request submitted by ${name}`,
+      last_message_at: new Date().toISOString(),
+      last_message_by: "client",
+    })
+    .select()
+    .single();
 
-  // System message
-  await appendRow("Messages", {
-    tenantId: tenant.id,
-    threadId: thread.id,
-    senderId: "",
-    senderName: "System",
-    senderRole: "",
-    type: "system",
-    content: `Job request submitted by ${name} (${email} · ${phone})`,
-    metadata: "",
-  });
-
-  // Client's first message (description as opening message)
-  await appendRow("Messages", {
-    tenantId: tenant.id,
-    threadId: thread.id,
-    senderId: existingClient?.id ?? "",
-    senderName: name,
-    senderRole: "client",
-    type: "text",
-    content: description,
-    metadata: "",
-  });
-
-  // If photo attached
-  if (photoUrl) {
-    await appendRow("Attachments", {
-      jobId: job.id,
-      messageId: "",
-      fileName: "request-photo",
-      fileType: "image",
-      fileUrl: photoUrl,
-      fileSize: "0",
-    });
+  if (thread) {
+    await supabaseAdmin.from("messages").insert([
+      {
+        tenant_id: tenant.id,
+        thread_id: thread.id,
+        sender_id: null,
+        sender_name: "System",
+        sender_role: "system",
+        type: "system",
+        content: `Job request submitted by ${name} (${email} · ${phone})`,
+      },
+      {
+        tenant_id: tenant.id,
+        thread_id: thread.id,
+        sender_id: existingClient?.id ?? null,
+        sender_name: name,
+        sender_role: "client",
+        type: "text",
+        content: description,
+      },
+    ]);
   }
 
   // Create client account if new
   if (!existingClient) {
     const passwordHash = await bcrypt.hash(password, 10);
-    await appendRow("Users", {
-      tenantId: tenant.id,
+    await supabaseAdmin.from("users").insert({
+      tenant_id: tenant.id,
       name,
-      email,
-      passwordHash,
+      email: email.toLowerCase(),
+      password_hash: passwordHash,
       role: "client",
       phone,
-      isActive: "true",
+      is_active: true,
     });
   }
-  // Existing clients keep their password untouched
 
   return NextResponse.json(
     { jobId: job.id, jobNumber, tenantSlug, clientEmail: email },

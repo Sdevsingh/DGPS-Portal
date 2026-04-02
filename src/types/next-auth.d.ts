@@ -1,5 +1,4 @@
-import "next-auth";
-import "next-auth/jwt";
+import NextAuth from "next-auth";
 
 declare module "next-auth" {
   interface Session {
@@ -11,7 +10,17 @@ declare module "next-auth" {
       tenantId: string;
       tenantName: string;
       tenantSlug: string;
+      assignedTenantIds: string[];
     };
+  }
+
+  interface User {
+    id: string;
+    role: string;
+    tenantId: string;
+    tenantName: string;
+    tenantSlug: string;
+    assignedTenantIds: string[];
   }
 }
 
@@ -22,5 +31,8 @@ declare module "next-auth/jwt" {
     tenantId: string;
     tenantName: string;
     tenantSlug: string;
+    assignedTenantIds: string[];
   }
 }
+
+export type { NextAuth };

@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { findRow, findRows } from "@/lib/sheets";
+import { supabaseAdmin } from "@/lib/supabase";
+import { formatJob, formatInspection } from "@/lib/db";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import InspectionForm from "@/components/jobs/InspectionForm";
@@ -14,17 +15,17 @@ export default async function InspectionPage({ params }: { params: Promise<{ id:
 
   if (role === "client") redirect("/client");
 
-  const [job, existingInspections] = await Promise.all([
-    findRow("Jobs", (r) => r.id === id),
-    findRows("Inspections", (r) => r.jobId === id),
+  const [{ data: jobData }, { data: inspectionsRaw }] = await Promise.all([
+    supabaseAdmin.from("jobs").select("*").eq("id", id).single(),
+    supabaseAdmin.from("inspections").select("*").eq("job_id", id).order("created_at", { ascending: false }),
   ]);
 
-  if (!job) notFound();
-  if (role !== "super_admin" && job.tenantId !== tenantId) notFound();
+  if (!jobData) notFound();
+  if (role !== "super_admin" && jobData.tenant_id !== tenantId) notFound();
 
-  const latestInspection = existingInspections.sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  )[0] ?? null;
+  const job = formatJob(jobData);
+  const inspections = (inspectionsRaw ?? []).map(formatInspection);
+  const latestInspection = inspections[0] ?? null;
 
   return (
     <div className="p-4 md:p-8 max-w-2xl mx-auto">
@@ -34,7 +35,6 @@ export default async function InspectionPage({ params }: { params: Promise<{ id:
         </svg>
         Back to job
       </Link>
-
       <div className="mb-5">
         <div className="flex items-center gap-2 mb-1">
           <h1 className="text-xl font-bold text-gray-900">Inspection Report</h1>
@@ -42,7 +42,6 @@ export default async function InspectionPage({ params }: { params: Promise<{ id:
         </div>
         <p className="text-sm text-gray-500">{job.jobNumber} · {job.propertyAddress}</p>
       </div>
-
       <InspectionForm jobId={id} tenantId={job.tenantId} existing={latestInspection} />
     </div>
   );
