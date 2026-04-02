@@ -14,6 +14,40 @@ type Message = {
   pending?: boolean; // true only for optimistic messages
 };
 
+type RawMessage = {
+  id: string;
+  type?: string;
+  content?: string;
+  createdAt?: string;
+  sender?: { id: string; name: string; role: string } | null;
+  senderId?: string;
+  senderName?: string;
+  senderRole?: string;
+  pending?: boolean;
+};
+
+function normalizeMessage(raw: RawMessage): Message {
+  const sender =
+    raw.sender !== undefined
+      ? raw.sender
+      : raw.senderId
+      ? {
+          id: raw.senderId,
+          name: raw.senderName ?? "",
+          role: raw.senderRole ?? "",
+        }
+      : null;
+
+  return {
+    id: raw.id,
+    type: (raw.type as Message["type"]) ?? "text",
+    content: raw.content ?? "",
+    createdAt: raw.createdAt ?? new Date().toISOString(),
+    sender,
+    pending: raw.pending,
+  };
+}
+
 type Props = {
   threadId: string;
   jobId: string;
@@ -63,7 +97,7 @@ export default function ChatPanel({ threadId, initialMessages }: Props) {
         // SSE comment lines (keepalive pings) have no data — skip them
         if (!e.data || e.data.startsWith(":")) return;
 
-        const incoming: Message = JSON.parse(e.data);
+        const incoming = normalizeMessage(JSON.parse(e.data) as RawMessage);
         lastSeenAtRef.current = incoming.createdAt;
         setCommitted((prev) => {
           if (prev.find((m) => m.id === incoming.id)) return prev;
@@ -84,7 +118,8 @@ export default function ChatPanel({ threadId, initialMessages }: Props) {
           `/api/chat/${threadId}?since=${encodeURIComponent(lastSeenAtRef.current)}`
         );
         if (!res.ok) return;
-        const missed: Message[] = await res.json();
+        const missedRaw = (await res.json()) as RawMessage[];
+        const missed = missedRaw.map(normalizeMessage);
         if (missed.length === 0) return;
         setCommitted((prev) => {
           const existingIds = new Set(prev.map((m) => m.id));
@@ -141,7 +176,7 @@ export default function ChatPanel({ threadId, initialMessages }: Props) {
           });
 
           if (res.ok) {
-            const saved: Message = await res.json();
+            const saved = normalizeMessage((await res.json()) as RawMessage);
             // Commit the real message — replaces the optimistic temp entry
             setCommitted((prev) => {
               const withoutTemp = prev.filter((m) => m.id !== tempId);

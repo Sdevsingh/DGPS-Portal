@@ -7,6 +7,14 @@ import ChatPanel from "@/components/chat/ChatPanel";
 import QuotePanel from "@/components/jobs/QuotePanel";
 import TechJobActions from "@/components/jobs/TechJobActions";
 
+type QuoteItem = {
+  id: string;
+  description: string;
+  quantity: string;
+  unitPrice: string;
+  total: string;
+};
+
 const STATUS_STYLE: Record<string, string> = {
   new: "bg-blue-100 text-blue-700",
   ready: "bg-purple-100 text-purple-700",
@@ -35,7 +43,7 @@ export default async function TechnicianJobDetailPage({
 
   if (role === "client") redirect("/client");
 
-  const [job, thread, quoteItems] = await Promise.all([
+  const [job, thread, quoteItemsRaw] = await Promise.all([
     findRow("Jobs", (r) => r.id === id),
     findRow("ChatThreads", (r) => r.jobId === id),
     findRows("QuoteItems", (r) => r.jobId === id),
@@ -51,6 +59,14 @@ export default async function TechnicianJobDetailPage({
   const sortedMessages = [...messages].sort(
     (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
   );
+  const quoteItems: QuoteItem[] = quoteItemsRaw.map((item) => ({
+    id: item.id ?? "",
+    description: item.description ?? "",
+    quantity: item.quantity ?? "",
+    unitPrice: item.unitPrice ?? "",
+    total: item.total ?? "",
+  }));
+  const inspectionState = (job.inspectionRequired ?? "") as string;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -136,15 +152,15 @@ export default async function TechnicianJobDetailPage({
               </div>
             )}
           </div>
-          {job.inspectionRequired === "true" && (
+          {(inspectionState === "true" || inspectionState === "done") && (
             <div className="px-5 py-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">Inspection Required</span>
-                {job.inspectionRequired === "done" && (
+                {inspectionState === "done" && (
                   <span className="text-xs text-green-600 font-medium">✓ Done</span>
                 )}
               </div>
-              {job.inspectionRequired !== "done" && (
+              {inspectionState !== "done" && (
                 <Link
                   href={`/jobs/${id}/inspection`}
                   className="text-sm font-semibold text-purple-600 hover:text-purple-700"

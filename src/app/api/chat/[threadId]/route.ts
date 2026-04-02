@@ -4,6 +4,21 @@ import { authOptions } from "@/lib/auth";
 import { findRow, findRows, appendRow, updateRow } from "@/lib/sheets";
 import { broadcastToThread } from "@/lib/sse";
 
+type MessageRow = Record<string, string>;
+
+function toChatMessage(row: MessageRow) {
+  const senderId = row.senderId ?? "";
+  const senderName = row.senderName ?? "";
+  const senderRole = row.senderRole ?? "";
+  return {
+    id: row.id,
+    type: row.type as "text" | "attachment" | "system",
+    content: row.content,
+    createdAt: row.createdAt,
+    sender: senderId ? { id: senderId, name: senderName, role: senderRole } : null,
+  };
+}
+
 /**
  * GET /api/chat/[threadId]?since=ISO_TIMESTAMP
  * Returns all messages in this thread after the given timestamp.
@@ -44,7 +59,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ thre
 
   messages.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
-  return NextResponse.json(messages);
+  return NextResponse.json(messages.map(toChatMessage));
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ threadId: string }> }) {
@@ -125,5 +140,5 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ thr
       : null,
   });
 
-  return NextResponse.json(message, { status: 201 });
+  return NextResponse.json(toChatMessage(message), { status: 201 });
 }

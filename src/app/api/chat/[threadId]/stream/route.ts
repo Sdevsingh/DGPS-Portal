@@ -17,12 +17,23 @@ export async function GET(
   if (!session) return new Response("Unauthorized", { status: 401 });
 
   const { threadId } = await params;
-  const { role, tenantId } = session.user;
+  const { role, tenantId, id: userId, email } = session.user;
 
   const thread = await findRow("ChatThreads", (r) => r.id === threadId);
   if (!thread) return new Response("Not found", { status: 404 });
   if (role !== "super_admin" && thread.tenantId !== tenantId) {
     return new Response("Forbidden", { status: 403 });
+  }
+  if (role === "client") {
+    const job = await findRow("Jobs", (r) => r.id === thread.jobId);
+    if (!job) return new Response("Not found", { status: 404 });
+    const canAccess =
+      job.tenantId === tenantId &&
+      (
+        job.agentEmail?.toLowerCase() === email?.toLowerCase() ||
+        job.createdByUserId === userId
+      );
+    if (!canAccess) return new Response("Forbidden", { status: 403 });
   }
 
   let streamController: ReadableStreamDefaultController<Uint8Array>;
