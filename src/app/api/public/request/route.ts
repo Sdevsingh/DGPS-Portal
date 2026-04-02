@@ -79,6 +79,9 @@ export async function POST(req: NextRequest) {
     paymentStatus: "unpaid",
     inspectionRequired: inspectionRequired === true || inspectionRequired === "true" ? "true" : "false",
     notes: "",
+    createdByUserId: existingClient?.id ?? "",
+    createdByName: name,
+    createdByRole: "client",
   });
 
   // Create chat thread

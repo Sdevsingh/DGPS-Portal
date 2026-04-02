@@ -26,7 +26,13 @@ export default async function ClientJobDetailPage({ params }: { params: Promise<
   if (!job) notFound();
 
   // Security: clients can only see their own jobs within their tenant
-  if (job.agentEmail !== session.user.email || job.tenantId !== session.user.tenantId) notFound();
+  const isOwner =
+    job.tenantId === session.user.tenantId &&
+    (
+      job.agentEmail?.toLowerCase() === session.user.email?.toLowerCase() ||
+      job.createdByUserId === session.user.id
+    );
+  if (!isOwner) notFound();
 
   const thread = existingThread ?? await ensureChatThreadForJob(job.id, job.tenantId);
 

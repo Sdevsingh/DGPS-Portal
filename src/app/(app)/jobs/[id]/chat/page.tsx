@@ -4,6 +4,7 @@ import { findRow, findRows } from "@/lib/sheets";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import ChatPanel from "@/components/chat/ChatPanel";
+import { ensureChatThreadForJob } from "@/lib/chat";
 
 export default async function JobChatMobilePage({ params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions);
@@ -12,13 +13,15 @@ export default async function JobChatMobilePage({ params }: { params: Promise<{ 
   const { id } = await params;
   const { role, tenantId } = session.user;
 
-  const [job, thread] = await Promise.all([
+  const [job, existingThread] = await Promise.all([
     findRow("Jobs", (r) => r.id === id),
     findRow("ChatThreads", (r) => r.jobId === id),
   ]);
 
   if (!job) notFound();
   if (role !== "super_admin" && job.tenantId !== tenantId) notFound();
+
+  const thread = existingThread ?? await ensureChatThreadForJob(job.id, job.tenantId);
 
   const messages = thread
     ? await findRows("Messages", (r) => r.threadId === thread.id)

@@ -45,6 +45,7 @@ const HEADERS: Record<TabName, string[]> = {
     "slaDeadline", "assignedToId", "assignedToName", "teamGroup",
     "quoteAmount", "quoteGst", "quoteTotalWithGst",
     "inspectionRequired", "notes", "createdAt", "updatedAt",
+    "createdByUserId", "createdByName", "createdByRole",
   ],
   QuoteItems: ["id", "jobId", "description", "quantity", "unitPrice", "total"],
   ChatThreads: [

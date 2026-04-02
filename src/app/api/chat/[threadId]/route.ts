@@ -13,13 +13,24 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ thre
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { role, tenantId } = session.user;
+  const { role, tenantId, id: userId, email } = session.user;
   const { threadId } = await params;
 
   const thread = await findRow("ChatThreads", (r) => r.id === threadId);
   if (!thread) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (role !== "super_admin" && thread.tenantId !== tenantId) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  if (role === "client") {
+    const job = await findRow("Jobs", (r) => r.id === thread.jobId);
+    if (!job) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    const canAccess =
+      job.tenantId === tenantId &&
+      (
+        job.agentEmail?.toLowerCase() === email?.toLowerCase() ||
+        job.createdByUserId === userId
+      );
+    if (!canAccess) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const since = req.nextUrl.searchParams.get("since");
@@ -48,6 +59,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ thr
 
   if (role !== "super_admin" && thread.tenantId !== tenantId) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  if (role === "client") {
+    const job = await findRow("Jobs", (r) => r.id === thread.jobId);
+    if (!job) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    const canAccess =
+      job.tenantId === tenantId &&
+      (
+        job.agentEmail?.toLowerCase() === session.user.email?.toLowerCase() ||
+        job.createdByUserId === userId
+      );
+    if (!canAccess) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const body = await req.json();

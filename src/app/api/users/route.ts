@@ -49,10 +49,10 @@ export async function POST(req: NextRequest) {
 
   const useTenantId = body.tenantId || tenantId;
 
-  // Check email uniqueness
+  // Check email uniqueness inside the target tenant only.
   const all = await getRows("Users");
-  if (all.some((u) => u.email === email)) {
-    return NextResponse.json({ error: "Email already in use" }, { status: 409 });
+  if (all.some((u) => u.tenantId === useTenantId && u.email.toLowerCase() === email.toLowerCase())) {
+    return NextResponse.json({ error: "Email already in use for this company" }, { status: 409 });
   }
 
   const passwordHash = await bcrypt.hash(password, 10);
