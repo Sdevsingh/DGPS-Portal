@@ -1,38 +1,81 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
+function mapAuthError(errorCode?: string | null): string {
+  if (!errorCode) return "";
+
+  switch (errorCode) {
+    case "no-account":
+      return "No account found for this Google email. Please contact your admin.";
+    case "CredentialsSignin":
+      return "Invalid login details. Check your email/password. If this email exists in multiple companies, add the company slug.";
+    case "SessionRequired":
+      return "Your previous session expired. Please sign in again.";
+    default:
+      return "Sign in failed. Please try again.";
+  }
+}
+
+async function resetAuthSession() {
+  try {
+    await fetch("/api/auth/session-reset", { method: "POST" });
+  } catch {
+    // Best-effort only. Login should still proceed even if this reset fails.
+  }
+}
+
+async function fetchSessionWithRetry(retries = 4, delayMs = 150) {
+  for (let i = 0; i < retries; i++) {
+    const session = await fetch("/api/auth/session").then((r) => r.json());
+    if (session?.user?.role) return session;
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+  }
+  return null;
+}
+
 function LoginPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const authError = searchParams?.get("error");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [tenantSlug, setTenantSlug] = useState("");
-  const [error, setError] = useState(
-    searchParams?.get("error") === "no-account"
-      ? "No account found for this Google email. Please contact your admin."
-      : ""
-  );
+  const [formError, setFormError] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [showForgot, setShowForgot] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotSent, setForgotSent] = useState(false);
   const [forgotLoading, setForgotLoading] = useState(false);
+  const error = formError || mapAuthError(authError);
+
+  useEffect(() => {
+    if (authError) {
+      void resetAuthSession();
+    }
+  }, [authError]);
 
   async function handleGoogleSignIn() {
     setGoogleLoading(true);
-    setError("");
-    await signIn("google", { callbackUrl: "/dashboard" });
+    setFormError("");
+    await resetAuthSession();
+    try {
+      await signIn("google", { callbackUrl: "/dashboard" });
+    } catch {
+      setGoogleLoading(false);
+      setFormError("Google sign in failed. Please try again.");
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    setError("");
+    setFormError("");
+    await resetAuthSession();
     const res = await signIn("credentials", {
       email,
       password,
@@ -40,12 +83,17 @@ function LoginPageInner() {
       redirect: false,
     });
     if (res?.error) {
-      setError("Invalid login details. If this email exists in multiple companies, enter the company slug.");
+      setFormError(mapAuthError(res.error));
       setLoading(false);
     } else {
-      // Fetch session to check role
-      const session = await fetch("/api/auth/session").then((r) => r.json());
+      // Give NextAuth a brief moment to persist the new session cookie.
+      const session = await fetchSessionWithRetry();
       const role = session?.user?.role;
+      if (!role) {
+        setFormError("Sign in succeeded but session could not be established. Please try once more.");
+        setLoading(false);
+        return;
+      }
       if (role === "client") {
         router.push("/client");
       } else if (role === "technician") {
@@ -67,7 +115,7 @@ function LoginPageInner() {
     setForgotLoading(false);
     if (!res.ok) {
       const data = await res.json();
-      setError(data.error ?? "Failed to send reset email. Please try again.");
+      setFormError(data.error ?? "Failed to send reset email. Please try again.");
       return;
     }
     setForgotSent(true);
@@ -220,7 +268,7 @@ function LoginPageInner() {
                       type="email"
                       placeholder="your@email.com"
                       value={forgotEmail}
-                      onChange={(e) => { setForgotEmail(e.target.value); setError(""); }}
+                      onChange={(e) => { setForgotEmail(e.target.value); setFormError(""); }}
                       onKeyDown={(e) => e.key === "Enter" && forgotEmail && handleForgot(e)}
                       className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
                     />
