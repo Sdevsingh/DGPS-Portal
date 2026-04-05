@@ -72,6 +72,14 @@ export default async function JobsPage({
   if (params.priority) jobQ = jobQ.eq("priority", params.priority);
   if (params.paymentStatus) jobQ = jobQ.eq("payment_status", params.paymentStatus);
 
+  // Fetch tenants for super_admin (for filter + display)
+  let tenants: { id: string; name: string }[] = [];
+  if (role === "super_admin") {
+    const { data: tenantsRaw } = await supabaseAdmin.from("tenants").select("id, name").order("name");
+    tenants = tenantsRaw ?? [];
+  }
+  const tenantMap = new Map(tenants.map((t) => [t.id, t.name]));
+
   const { data: allJobsRaw } = await jobQ.order("created_at", { ascending: false });
   let jobs = (allJobsRaw ?? []).map(formatJob);
 
@@ -132,7 +140,7 @@ export default async function JobsPage({
       </div>
 
       <Suspense fallback={null}>
-        <JobFilters />
+        <JobFilters tenants={tenants} showCompanyFilter={role === "super_admin"} />
       </Suspense>
 
       <div className="bg-white border border-gray-200 rounded-2xl divide-y divide-gray-100 shadow-sm">
@@ -145,8 +153,10 @@ export default async function JobsPage({
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap mb-0.5">
                   <span className="font-semibold text-gray-900 text-sm">{job.jobNumber}</span>
-                  {role === "super_admin" && (
-                    <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">{job.companyName}</span>
+                  {role === "super_admin" && job.tenantId && (
+                    <span className="text-xs bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full font-medium">
+                      {tenantMap.get(job.tenantId) ?? job.tenantId}
+                    </span>
                   )}
                   {needsReply && (
                     <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-medium animate-pulse">Reply needed</span>
