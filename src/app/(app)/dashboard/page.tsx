@@ -1,7 +1,8 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase-server";
-import { formatJob, formatThread, formatTenant } from "@/lib/db";
+import { formatJob, formatThread } from "@/lib/db";
+import { redirect } from "next/navigation";
 import Link from "next/link";
 
 function IconBriefcase() {
@@ -99,12 +100,17 @@ export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
   if (!session) return null;
 
-  const { role, tenantId, assignedTenantIds } = session.user;
+  const { role, tenantId, id: userId, assignedTenantIds } = session.user;
+
+  if (role === "client") redirect("/client");
 
   let jobQ = supabaseAdmin.from("jobs").select("id, job_number, job_status, quote_status, payment_status, priority, property_address, company_name, tenant_id, created_at");
   let threadQ = supabaseAdmin.from("chat_threads").select("id, job_id, pending_on, response_due_time, tenant_id");
 
-  if (role !== "super_admin") {
+  if (role === "technician") {
+    jobQ = jobQ.eq("tenant_id", tenantId).eq("assigned_to_id", userId);
+    threadQ = threadQ.eq("tenant_id", tenantId);
+  } else if (role !== "super_admin") {
     const accessible = Array.from(new Set([tenantId, ...(assignedTenantIds ?? [])]));
     jobQ = jobQ.in("tenant_id", accessible);
     threadQ = threadQ.in("tenant_id", accessible);
@@ -113,7 +119,11 @@ export default async function DashboardPage() {
   const [{ data: allJobsRaw }, { data: allThreadsRaw }] = await Promise.all([jobQ.order("created_at", { ascending: false }), threadQ]);
 
   const allJobs = (allJobsRaw ?? []).map(formatJob);
-  const allThreads = (allThreadsRaw ?? []).map(formatThread);
+  const allThreadsRaw2 = (allThreadsRaw ?? []).map(formatThread);
+
+  // For technicians, only count threads on their assigned jobs
+  const techJobIds = role === "technician" ? new Set(allJobs.map((j) => j.id)) : null;
+  const allThreads = techJobIds ? allThreadsRaw2.filter((t) => techJobIds.has(t.jobId)) : allThreadsRaw2;
 
   const now = new Date();
   const totalJobs = allJobs.length;
@@ -150,6 +160,9 @@ export default async function DashboardPage() {
 
   const priorityDot: Record<string, string> = { high: "bg-red-500", medium: "bg-yellow-400", low: "bg-green-400" };
 
+  const isTechnician = role === "technician";
+  const jobsBase = isTechnician ? "/technician" : "/jobs";
+
   const hour = now.getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   const dateStr = now.toLocaleDateString("en-AU", { weekday: "long", day: "numeric", month: "long" });
@@ -174,7 +187,7 @@ export default async function DashboardPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-6 md:px-8 py-6 space-y-6">
-        {totalAttention > 0 && (
+        {totalAttention > 0 && !isTechnician && (
           <div>
             <div className="flex items-center gap-2 mb-3">
               <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
@@ -190,10 +203,10 @@ export default async function DashboardPage() {
         )}
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <MetricCard label="Total Jobs" value={totalJobs} icon={<IconBriefcase />} accent="bg-gray-200" href="/jobs" />
-          <MetricCard label="New" value={newJobs} icon={<IconSpark />} accent="bg-blue-400" href="/jobs?status=new" />
-          <MetricCard label="In Progress" value={inProgressJobs} icon={<IconClock />} accent="bg-yellow-400" href="/jobs?status=in_progress" />
-          <MetricCard label="Completed" value={completedJobs} icon={<IconCheck />} accent="bg-green-500" href="/jobs?status=completed" />
+          <MetricCard label="Total Jobs" value={totalJobs} icon={<IconBriefcase />} accent="bg-gray-200" href={jobsBase} />
+          <MetricCard label="New" value={newJobs} icon={<IconSpark />} accent="bg-blue-400" href={isTechnician ? `${jobsBase}?status=new` : "/jobs?status=new"} />
+          <MetricCard label="In Progress" value={inProgressJobs} icon={<IconClock />} accent="bg-yellow-400" href={isTechnician ? `${jobsBase}?status=in_progress` : "/jobs?status=in_progress"} />
+          <MetricCard label="Completed" value={completedJobs} icon={<IconCheck />} accent="bg-green-500" href={isTechnician ? `${jobsBase}?status=completed` : "/jobs?status=completed"} />
         </div>
 
         {totalJobs > 0 && (
@@ -208,7 +221,7 @@ export default async function DashboardPage() {
                 if (count === 0) return null;
                 const pct = Math.round((count / totalJobs) * 100);
                 return (
-                  <Link key={status} href={`/jobs?status=${status}`} className="flex items-center gap-3 group">
+                  <Link key={status} href={isTechnician ? jobsBase : `/jobs?status=${status}`} className="flex items-center gap-3 group">
                     <span className={`text-xs font-medium ${cfg.text} w-24 shrink-0`}>{cfg.label}</span>
                     <div className="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden">
                       <div className={`${cfg.bar} h-2 rounded-full transition-all duration-500`} style={{ width: `${pct}%` }} />
@@ -221,7 +234,7 @@ export default async function DashboardPage() {
           </div>
         )}
 
-        {pendingQuotes > 0 && (
+        {pendingQuotes > 0 && !isTechnician && (
           <Link href="/jobs?quoteStatus=pending" className="flex items-center gap-4 bg-purple-50 border border-purple-200 rounded-2xl px-5 py-4 hover:shadow-md transition-all group">
             <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center shrink-0"><IconChat /></div>
             <div className="flex-1">
@@ -262,7 +275,7 @@ export default async function DashboardPage() {
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
           <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
             <h2 className="font-semibold text-gray-900">Recent Activity</h2>
-            <Link href="/jobs" className="text-xs text-blue-600 hover:underline font-medium">View all →</Link>
+            <Link href={jobsBase} className="text-xs text-blue-600 hover:underline font-medium">View all →</Link>
           </div>
           <div className="divide-y divide-gray-50">
             {recentJobs.map((job) => {
@@ -270,7 +283,7 @@ export default async function DashboardPage() {
               const cfg = statusConfig[job.jobStatus];
               const needsReply = thread?.pendingOn === "team";
               return (
-                <Link key={job.id} href={`/jobs/${job.id}`} className="flex items-center gap-4 px-5 py-3.5 hover:bg-gray-50 transition-colors group">
+                <Link key={job.id} href={isTechnician ? `/technician/jobs/${job.id}` : `/jobs/${job.id}`} className="flex items-center gap-4 px-5 py-3.5 hover:bg-gray-50 transition-colors group">
                   <span className={`w-2 h-2 rounded-full shrink-0 ${priorityDot[job.priority] ?? "bg-gray-300"}`} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">

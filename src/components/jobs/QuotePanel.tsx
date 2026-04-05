@@ -24,6 +24,19 @@ export default function QuotePanel({ jobId, quoteStatus, quoteAmount, quoteGst, 
 
   const isOpsOrAdmin = role === "operations_manager" || role === "super_admin";
 
+  function openForm() {
+    if (quoteItems.length > 0) {
+      setItems(quoteItems.map((item) => ({
+        description: item.description,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+      })));
+    } else {
+      setItems([{ description: "", quantity: "1", unitPrice: "" }]);
+    }
+    setShowForm(true);
+  }
+
   function addItem() {
     setItems((prev) => [...prev, { description: "", quantity: "1", unitPrice: "" }]);
   }
@@ -119,7 +132,7 @@ export default function QuotePanel({ jobId, quoteStatus, quoteAmount, quoteGst, 
       {isOpsOrAdmin && (quoteStatus === "pending" || quoteStatus === "rejected" || quoteStatus === "sent") && (
         <>
           {!showForm ? (
-            <button onClick={() => setShowForm(true)}
+            <button onClick={openForm}
               className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl text-sm transition-colors">
               {quoteStatus === "sent" ? "Revise Quote" : hasQuote ? "Update Quote" : "Create & Send Quote"}
             </button>

@@ -110,8 +110,39 @@ export default async function TechnicianJobDetailPage({ params }: { params: Prom
               </div>
             )}
             {job.agentName && <div><p className="text-xs text-gray-400 mb-0.5">Agent</p><p className="text-sm font-medium text-gray-800">{job.agentName}</p></div>}
-            {job.agentContact && <div><p className="text-xs text-gray-400 mb-0.5">Contact</p><a href={`tel:${job.agentContact}`} className="text-sm font-medium text-blue-600 hover:underline">{job.agentContact}</a></div>}
+            {job.agentContact && <div><p className="text-xs text-gray-400 mb-0.5">Agent Contact</p><a href={`tel:${job.agentContact}`} className="text-sm font-medium text-blue-600 hover:underline">{job.agentContact}</a></div>}
+            {job.agentEmail && <div className="col-span-2"><p className="text-xs text-gray-400 mb-0.5">Agent Email</p><a href={`mailto:${job.agentEmail}`} className="text-sm font-medium text-blue-600 hover:underline">{job.agentEmail}</a></div>}
           </div>
+          {(job.companyName || job.customerContact || job.customerEmail) && (
+            <div className="px-5 py-4">
+              <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-3">Customer Details</p>
+              {job.companyName && (
+                <div className="flex items-start justify-between gap-4 mb-2">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">{job.companyName}</p>
+                    {job.customerContact && <p className="text-xs text-gray-500 mt-0.5">{job.customerContact}</p>}
+                  </div>
+                  {job.customerContact && (
+                    <a
+                      href={`tel:${job.customerContact.replace(/\s/g, "")}`}
+                      className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-medium hover:bg-blue-100 transition-colors"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                      </svg>
+                      Call
+                    </a>
+                  )}
+                </div>
+              )}
+              {job.customerEmail && (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-400">Email</span>
+                  <a href={`mailto:${job.customerEmail}`} className="text-sm text-blue-600 hover:underline">{job.customerEmail}</a>
+                </div>
+              )}
+            </div>
+          )}
           {(inspectionState === "true" || inspectionState === "done") && (
             <div className="px-5 py-3 flex items-center justify-between">
               <div className="flex items-center gap-2">

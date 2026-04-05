@@ -125,7 +125,54 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
             <DetailRow label="Source" value={job.source ? job.source.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "—"} />
             <DetailRow label="Created By" value={job.createdByName || (job.source === "public_form" ? "Client Request Form" : "Team")} />
             <DetailRow label="Agent" value={job.agentName || "—"} />
-            <DetailRow label="Contact" value={job.agentContact || "—"} />
+            <DetailRow label="Agent Contact" value={job.agentContact || "—"} />
+            {job.agentEmail && <DetailRow label="Agent Email" value={job.agentEmail} />}
+          </div>
+
+          {/* Customer Details — end customer who requested the service */}
+          {(job.companyName || job.customerContact || job.customerEmail) && (
+            <div className="space-y-3 mb-5 p-3 bg-blue-50 border border-blue-100 rounded-xl">
+              <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide">Customer Details</p>
+              {job.companyName && (
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">{job.companyName}</p>
+                    {job.customerContact && <p className="text-xs text-gray-500 mt-0.5">{job.customerContact}</p>}
+                  </div>
+                  {job.customerContact && (
+                    <a
+                      href={`tel:${job.customerContact.replace(/\s/g, "")}`}
+                      className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg text-xs font-medium hover:bg-blue-200 transition-colors"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                      </svg>
+                      Call
+                    </a>
+                  )}
+                </div>
+              )}
+              {!job.companyName && job.customerContact && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-500">{job.customerContact}</span>
+                  <a
+                    href={`tel:${job.customerContact.replace(/\s/g, "")}`}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg text-xs font-medium hover:bg-blue-200 transition-colors"
+                  >
+                    Call
+                  </a>
+                </div>
+              )}
+              {job.customerEmail && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-500">Email</span>
+                  <a href={`mailto:${job.customerEmail}`} className="text-sm text-blue-600 hover:underline">{job.customerEmail}</a>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="space-y-3 mb-5">
             {job.assignedToName && <DetailRow label="Technician" value={job.assignedToName} />}
             {job.slaDeadline && <DetailRow label="SLA Deadline" value={new Date(job.slaDeadline).toLocaleDateString("en-AU")} />}
             {job.inspectionRequired === "true" && (

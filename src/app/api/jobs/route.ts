@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase-server";
-import { formatJob, formatThread, toDbJobPatch, nextJobNumber, getJobs, getThreads } from "@/lib/db";
+import { formatJob, formatThread, nextJobNumber } from "@/lib/db";
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -101,13 +101,32 @@ export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { role, tenantId, id: userId, name: userName } = session.user;
-  if (role === "client") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const { role, tenantId, id: userId, name: userName, email: userEmail } = session.user;
+
+  // Technicians cannot create jobs
+  if (role === "technician") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await req.json();
+
+  // Clients are scoped to their own tenant only
   const useTenantId = role === "super_admin" ? (body.tenantId || tenantId) : tenantId;
 
+  // Validate required fields for client portal submissions
+  // Field mapping for client role (applies to any client company — DGPS, PropServ, ACE, etc.):
+  //   agent_name       → staff member from the client company raising this job (form input)
+  //   agent_contact    → that staff member's direct phone (form input)
+  //   agent_email      → that staff member's personal direct email — NOT the shared login email (form input)
+  //   company_name     → end customer name — the person who contacted the client company (form input)
+  //   customer_contact → end customer's phone number (form input)
+  if (role === "client") {
+    const missing = ["agentName", "agentContact", "companyName", "propertyAddress", "description"].filter((f) => !body[f]);
+    if (missing.length > 0) {
+      return NextResponse.json({ error: `Missing required fields: ${missing.join(", ")}` }, { status: 400 });
+    }
+  }
+
   const jobNumber = await nextJobNumber(useTenantId);
+  const isClient = role === "client";
 
   const { data: job, error: jobError } = await supabaseAdmin
     .from("jobs")
@@ -118,12 +137,19 @@ export async function POST(req: NextRequest) {
       company_name: body.companyName ?? "",
       agent_name: body.agentName ?? "",
       agent_contact: body.agentContact ?? "",
+      // For client submissions, agent_email = agent's personal direct email (form input)
+      // NOT the shared login email — that's only used for auth
       agent_email: body.agentEmail ?? "",
+      customer_contact: body.customerContact ?? "",
+      customer_email: body.customerEmail ?? "",
       property_address: body.propertyAddress ?? "",
       description: body.description ?? "",
-      category: body.category ?? "Plumbing",
+      category: body.category ?? "General Maintenance",
       priority: body.priority ?? "medium",
-      source: body.source ?? "manual",
+      // "public_form" is the closest valid enum value for client portal submissions.
+      // Run scripts/migrate-add-customer-contact.sql to add 'portal' enum value,
+      // then this can be changed to: isClient ? "portal" : (body.source ?? "manual")
+      source: isClient ? "public_form" : (body.source ?? "manual"),
       job_status: "new",
       quote_status: "pending",
       payment_status: "unpaid",
@@ -134,7 +160,8 @@ export async function POST(req: NextRequest) {
       inspection_required: body.inspectionRequired === "true" || body.inspectionRequired === true ? "required" : "not_required",
       notes: null,
       created_by_user_id: userId,
-      created_by_name: userName,
+      // For clients, store the individual agent's name (not the shared tenant name)
+      created_by_name: isClient ? body.agentName : userName,
       created_by_role: role,
     })
     .select()
@@ -145,27 +172,54 @@ export async function POST(req: NextRequest) {
   }
 
   // Auto-create chat thread
+  // Client portal submissions: pending_on = "team" so ops manager sees it needs action
+  // Internal submissions: pending_on = "none"
   const { data: thread } = await supabaseAdmin
     .from("chat_threads")
     .insert({
       tenant_id: useTenantId,
       job_id: job.id,
-      pending_on: "none",
+      pending_on: isClient ? "team" : "none",
+      ...(isClient
+        ? {
+            last_message: `New request submitted by ${body.agentName}`,
+            last_message_at: new Date().toISOString(),
+            last_message_by: "client",
+          }
+        : {}),
     })
     .select()
     .single();
 
-  // System message
   if (thread) {
-    await supabaseAdmin.from("messages").insert({
-      tenant_id: useTenantId,
-      thread_id: thread.id,
-      sender_id: null,
-      sender_name: "System",
-      sender_role: "system",
-      type: "system",
-      content: `Job ${jobNumber} created`,
-    });
+    const messages: object[] = [
+      {
+        tenant_id: useTenantId,
+        thread_id: thread.id,
+        sender_id: null,
+        sender_name: "System",
+        sender_role: "system",
+        type: "system",
+        content: isClient
+          ? `Job ${jobNumber} submitted via portal by ${body.agentName} (${body.agentEmail || userEmail} · ${body.agentContact}) for customer: ${body.companyName}${body.customerContact ? ` · ${body.customerContact}` : ""}`
+          : `Job ${jobNumber} created`,
+      },
+    ];
+
+    // For client submissions, also post the description as the opening message in chat
+    if (isClient) {
+      messages.push({
+        tenant_id: useTenantId,
+        thread_id: thread.id,
+        sender_id: userId,
+        sender_name: body.agentName,
+        sender_role: "client",
+        type: "text",
+        content: body.description,
+      });
+    }
+
+    await supabaseAdmin.from("messages").insert(messages);
   }
 
   return NextResponse.json(formatJob(job), { status: 201 });
