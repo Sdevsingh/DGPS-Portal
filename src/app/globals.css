@@ -101,3 +101,7 @@ body {
 .logo-glow-sm {
   animation: logo-breathe-sm 3s ease-in-out infinite;
 }
+
+/* Login panel orb delays */
+.orb-delay-1 { animation-delay: 1.2s; }
+.orb-delay-2 { animation-delay: 2.4s; }

@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { motion } from "framer-motion";
 
 function mapAuthError(errorCode?: string | null): string {
   if (!errorCode) return "";
@@ -129,10 +130,40 @@ function LoginPageInner() {
     <div className="min-h-screen flex bg-gray-950">
       {/* Left panel - branding */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-700 via-blue-600 to-indigo-700 flex-col justify-between p-12">
-        <div className="flex items-center gap-3">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/Logo.jpeg" alt="Domain Group Property Services" className="h-10 w-auto object-contain" />
-        </div>
+        <motion.div
+          className="relative inline-flex cursor-pointer"
+          whileHover="hover"
+          initial="rest"
+          animate="rest"
+        >
+          {/* Outer radial glow */}
+          <motion.div
+            className="absolute -inset-6 rounded-[28px] pointer-events-none"
+            variants={{
+              rest: { opacity: 0, scale: 0.9 },
+              hover: { opacity: 1, scale: 1 },
+            }}
+            style={{ background: "radial-gradient(ellipse at center, rgba(255,255,255,0.28) 0%, rgba(147,197,253,0.12) 50%, transparent 75%)" }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
+          />
+          {/* Frosted-glass logo pill */}
+          <motion.div
+            className="relative flex items-center gap-3 rounded-2xl px-4 py-2.5 border border-white/25"
+            style={{ background: "rgba(255,255,255,0.12)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
+            variants={{
+              rest: { scale: 1, boxShadow: "0 2px 12px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.15)" },
+              hover: { scale: 1.04, boxShadow: "0 8px 32px rgba(0,0,0,0.18), 0 0 0 2px rgba(255,255,255,0.35), inset 0 1px 0 rgba(255,255,255,0.25)" },
+            }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
+          >
+            <img
+              src="/Logo.jpeg"
+              alt="Domain Group Property Services"
+              className="h-9 w-auto object-contain rounded-lg"
+              style={{ mixBlendMode: "multiply" }}
+            />
+          </motion.div>
+        </motion.div>
 
         <div>
           <h1 className="text-4xl font-bold text-white leading-tight mb-4">
@@ -163,9 +194,38 @@ function LoginPageInner() {
       <div className="flex-1 flex items-center justify-center px-6 py-12 bg-gray-950">
         <div className="w-full max-w-sm">
           {/* Mobile logo */}
-          <div className="lg:hidden text-center mb-8">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/Logo.jpeg" alt="Domain Group Property Services" className="h-14 w-auto object-contain mb-3" />
+          <div className="lg:hidden flex justify-center mb-8">
+            <motion.div
+              className="relative inline-flex cursor-pointer"
+              whileHover="hover"
+              initial="rest"
+              animate="rest"
+            >
+              <motion.div
+                className="absolute -inset-5 rounded-[24px] pointer-events-none"
+                variants={{
+                  rest: { opacity: 0, scale: 0.9 },
+                  hover: { opacity: 1, scale: 1 },
+                }}
+                style={{ background: "radial-gradient(ellipse at center, rgba(96,165,250,0.35) 0%, transparent 70%)" }}
+                transition={{ duration: 0.4, ease: "easeOut" }}
+              />
+              <motion.div
+                className="relative flex items-center rounded-2xl px-5 py-3 border border-gray-200/60"
+                style={{ background: "rgba(255,255,255,0.95)" }}
+                variants={{
+                  rest: { scale: 1, boxShadow: "0 4px 16px rgba(0,0,0,0.08)" },
+                  hover: { scale: 1.05, boxShadow: "0 8px 32px rgba(96,165,250,0.35), 0 0 0 2px rgba(96,165,250,0.4)" },
+                }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+              >
+                <img
+                  src="/Logo.jpeg"
+                  alt="Domain Group Property Services"
+                  className="h-10 w-auto object-contain"
+                />
+              </motion.div>
+            </motion.div>
           </div>
 
           <h2 className="text-2xl font-bold text-white mb-1">Welcome back</h2>
