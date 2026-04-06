@@ -37,6 +37,20 @@ export function DashboardStatSkeleton() {
   );
 }
 
+export function ChartSkeleton() {
+  return (
+    <div className="h-64 flex items-end gap-2 px-2">
+      {[60, 80, 45, 90, 55, 70].map((h, i) => (
+        <div
+          key={i}
+          className="flex-1 animate-pulse bg-gray-200 rounded-t"
+          style={{ height: `${h}%` }}
+        />
+      ))}
+    </div>
+  );
+}
+
 export function TableRowSkeleton({ cols = 5 }: { cols?: number }) {
   return (
     <tr>
