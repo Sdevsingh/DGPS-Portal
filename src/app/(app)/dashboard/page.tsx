@@ -76,22 +76,20 @@ function formatRelativeTime(dateStr: string): string {
 
 function MetricCard({ label, value, icon, accent, href }: { label: string; value: number; icon: React.ReactNode; accent: string; href?: string }) {
   const inner = (
-    <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
+    <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition-all group relative overflow-hidden h-full flex flex-col min-h-[120px]">
       <div className={`absolute top-0 left-0 right-0 h-0.5 ${accent}`} />
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between flex-1">
         <div>
-          <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">{label}</p>
+          <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2 leading-tight">{label}</p>
           <p className="text-3xl font-bold text-gray-900 leading-none">{value}</p>
         </div>
-        <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-gray-50 text-gray-400 group-hover:scale-110 transition-transform">
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-gray-50 text-gray-400 group-hover:scale-110 transition-transform shrink-0">
           {icon}
         </div>
       </div>
-      {href && (
-        <div className="mt-3 flex items-center gap-1 text-xs text-gray-400 group-hover:text-gray-600 transition-colors">
-          <span>View all</span><IconChevron />
-        </div>
-      )}
+      <div className="mt-3 flex items-center gap-1 text-xs text-gray-400 group-hover:text-gray-600 transition-colors">
+        <span>View all</span><IconChevron />
+      </div>
     </div>
   );
   return href ? <Link href={href}>{inner}</Link> : inner;
@@ -165,7 +163,7 @@ export default async function DashboardPage() {
   const inProgressJobs   = allJobs.filter((j) => j.jobStatus === "in_progress").length;
   const completedJobs    = allJobs.filter((j) => j.jobStatus === "completed").length;
   const invoicedJobs     = allJobs.filter((j) => j.jobStatus === "invoiced").length;
-  const paidJobs         = allJobs.filter((j) => j.paymentStatus === "paid").length;
+  const paidJobs         = allJobs.filter((j) => j.jobStatus === "paid").length;
   const pendingQuotes    = allJobs.filter((j) => j.quoteStatus === "pending").length;
   const quoteApproved    = allJobs.filter((j) => j.quoteStatus === "approved").length;
   const quoteSent        = allJobs.filter((j) => j.quoteStatus === "sent").length;
@@ -318,7 +316,7 @@ export default async function DashboardPage() {
             <div className="xl:col-span-7 space-y-5">
 
               {/* Metric cards */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 items-stretch">
                 <MetricCard label="Total Jobs"  value={totalJobs}      icon={<IconBriefcase />} accent="bg-gray-200"   href="/jobs" />
                 <MetricCard label="New"         value={newJobs}        icon={<IconSpark />}     accent="bg-blue-400"   href="/jobs?status=new" />
                 <MetricCard label="In Progress" value={inProgressJobs} icon={<IconClock />}     accent="bg-yellow-400" href="/jobs?status=in_progress" />
@@ -456,7 +454,7 @@ export default async function DashboardPage() {
           </div>
         )}
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 items-stretch">
           <MetricCard label="Total Jobs"  value={totalJobs}      icon={<IconBriefcase />} accent="bg-gray-200"   href={jobsBase} />
           <MetricCard label="New"         value={newJobs}        icon={<IconSpark />}     accent="bg-blue-400"   href={`${jobsBase}?status=new`} />
           <MetricCard label="In Progress" value={inProgressJobs} icon={<IconClock />}     accent="bg-yellow-400" href={`${jobsBase}?status=in_progress`} />
