@@ -80,7 +80,7 @@ function MetricCard({ label, value, icon, accent, href }: { label: string; value
       <div className={`absolute top-0 left-0 right-0 h-0.5 ${accent}`} />
       <div className="flex items-start justify-between flex-1">
         <div>
-          <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2 leading-tight">{label}</p>
+          <p className="text-xs font-medium text-gray-400 uppercase tracking-wider leading-tight h-8 flex items-start">{label}</p>
           <p className="text-3xl font-bold text-gray-900 leading-none">{value}</p>
         </div>
         <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-gray-50 text-gray-400 group-hover:scale-110 transition-transform shrink-0">
