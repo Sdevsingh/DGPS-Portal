@@ -288,23 +288,26 @@ RESEND_FROM=                      # Sender address
 
 ---
 
-## Pending DB Migrations (run in Supabase SQL editor)
+## Pending DB Migration (run in Supabase SQL editor BEFORE deploying)
 
 ```sql
--- Add portal as valid job source
+-- Add portal as valid job source enum value
 ALTER TYPE job_source ADD VALUE IF NOT EXISTS 'portal';
-
--- Add extra job categories
-ALTER TYPE job_category ADD VALUE IF NOT EXISTS 'Carpentry';
-ALTER TYPE job_category ADD VALUE IF NOT EXISTS 'Cleaning';
-ALTER TYPE job_category ADD VALUE IF NOT EXISTS 'Painting & Plastering';
-ALTER TYPE job_category ADD VALUE IF NOT EXISTS 'Garden & Landscaping';
 ```
 
-Once `portal` is added, update `src/app/api/jobs/route.ts`:
+After running the above SQL, update `src/app/api/jobs/route.ts` line ~152:
 ```typescript
 source: isClient ? "portal" : (body.source ?? "manual"),
 ```
+Then remove this section from CLAUDE.md.
+
+> **Category enums done** — Carpentry, Cleaning, Painting & Plastering, Garden & Landscaping already added to the internal job form (`/jobs/new/page.tsx`). If `job_category` is an enum in Supabase, also run:
+> ```sql
+> ALTER TYPE job_category ADD VALUE IF NOT EXISTS 'Carpentry';
+> ALTER TYPE job_category ADD VALUE IF NOT EXISTS 'Cleaning';
+> ALTER TYPE job_category ADD VALUE IF NOT EXISTS 'Painting & Plastering';
+> ALTER TYPE job_category ADD VALUE IF NOT EXISTS 'Garden & Landscaping';
+> ```
 
 ---
 

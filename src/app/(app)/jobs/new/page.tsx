@@ -409,6 +409,10 @@ export default function NewJobPage() {
                 <option>Roofing</option>
                 <option>HVAC</option>
                 <option>General Maintenance</option>
+                <option>Carpentry</option>
+                <option>Cleaning</option>
+                <option>Painting &amp; Plastering</option>
+                <option>Garden &amp; Landscaping</option>
                 <option>Other</option>
               </select>
             </div>
