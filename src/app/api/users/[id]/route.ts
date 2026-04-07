@@ -37,6 +37,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if ("password" in body && body.password) {
     patch.password_hash = await bcrypt.hash(body.password, 10);
   }
+  if ("clientCompanyName" in body) {
+    patch.client_company_name = body.clientCompanyName || null;
+  }
+  // Clear client_company_name when role changes away from client
+  if ("role" in body && body.role !== "client" && !("clientCompanyName" in body)) {
+    patch.client_company_name = null;
+  }
 
   patch.updated_at = new Date().toISOString();
 
