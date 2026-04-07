@@ -74,25 +74,38 @@ function formatRelativeTime(dateStr: string): string {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
+const METRIC_STYLES: Record<string, { iconBg: string; iconText: string; valuText: string; glow: string; border: string }> = {
+  "bg-gray-200":   { iconBg: "bg-gray-100",   iconText: "text-gray-500",   valuText: "text-gray-900",   glow: "from-gray-50",   border: "border-gray-100" },
+  "bg-blue-400":   { iconBg: "bg-blue-50",    iconText: "text-blue-500",   valuText: "text-blue-700",   glow: "from-blue-50",   border: "border-blue-100" },
+  "bg-yellow-400": { iconBg: "bg-yellow-50",  iconText: "text-yellow-600", valuText: "text-yellow-700", glow: "from-yellow-50", border: "border-yellow-100" },
+  "bg-green-500":  { iconBg: "bg-emerald-50", iconText: "text-emerald-600", valuText: "text-emerald-700", glow: "from-emerald-50", border: "border-emerald-100" },
+};
+
 function MetricCard({ label, value, icon, accent, href }: { label: string; value: number; icon: React.ReactNode; accent: string; href?: string }) {
+  const s = METRIC_STYLES[accent] ?? METRIC_STYLES["bg-gray-200"];
   const inner = (
-    <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition-all group relative overflow-hidden h-full flex flex-col min-h-[120px]">
-      <div className={`absolute top-0 left-0 right-0 h-0.5 ${accent}`} />
-      <div className="flex items-start justify-between flex-1">
-        <div>
-          <p className="text-xs font-medium text-gray-400 uppercase tracking-wider leading-tight h-8 flex items-start">{label}</p>
-          <p className="text-3xl font-bold text-gray-900 leading-none">{value}</p>
-        </div>
-        <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-gray-50 text-gray-400 group-hover:scale-110 transition-transform shrink-0">
+    <div className={`relative rounded-2xl border ${s.border} bg-white p-5 shadow-sm hover:shadow-lg transition-all duration-200 group overflow-hidden h-full flex flex-col`}>
+      {/* Subtle gradient wash */}
+      <div className={`absolute inset-0 bg-gradient-to-br ${s.glow} to-white opacity-60 pointer-events-none`} />
+      {/* Top accent bar */}
+      <div className={`absolute top-0 left-0 right-0 h-[3px] ${accent} rounded-t-2xl`} />
+
+      <div className="relative flex items-start justify-between mb-4">
+        <div className={`w-10 h-10 rounded-xl ${s.iconBg} ${s.iconText} flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-200`}>
           {icon}
         </div>
+        <span className={`text-[10px] font-semibold uppercase tracking-widest ${s.iconText} opacity-70 pt-1`}>{label}</span>
       </div>
-      <div className="mt-3 flex items-center gap-1 text-xs text-gray-400 group-hover:text-gray-600 transition-colors">
-        <span>View all</span><IconChevron />
+
+      <div className="relative flex-1 flex flex-col justify-end">
+        <p className={`text-4xl font-black leading-none tracking-tight ${s.valuText}`}>{value}</p>
+        <div className="mt-3 flex items-center gap-1 text-xs text-gray-400 group-hover:text-gray-600 transition-colors">
+          <span>View all</span><IconChevron />
+        </div>
       </div>
     </div>
   );
-  return href ? <Link href={href}>{inner}</Link> : inner;
+  return href ? <Link href={href} className="h-full block">{inner}</Link> : inner;
 }
 
 function AlertCard({ label, value, color, bg, border, text, href }: { label: string; value: number; color: string; bg: string; border: string; text: string; href: string }) {
