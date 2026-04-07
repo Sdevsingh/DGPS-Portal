@@ -34,6 +34,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if ("phone" in body) patch.phone = body.phone;
   if ("role" in body) patch.role = body.role;
   if ("isActive" in body) patch.is_active = body.isActive === "true" || body.isActive === true;
+  if ("clientCompanyName" in body) {
+    patch.client_company_name = body.clientCompanyName || null;
+  }
+  // Clear client_company_name when role changes away from client
+  if ("role" in body && body.role !== "client" && !("clientCompanyName" in body)) {
+    patch.client_company_name = null;
+  }
   if ("password" in body && body.password) {
     patch.password_hash = await bcrypt.hash(body.password, 10);
   }

@@ -71,6 +71,7 @@ export const authOptions: NextAuthOptions = {
           tenantName: tenant?.name ?? "",
           tenantSlug: tenant?.slug ?? "",
           assignedTenantIds,
+          clientCompanyName: user.client_company_name ?? "",
         };
       },
     }),
@@ -195,6 +196,7 @@ export const authOptions: NextAuthOptions = {
           token.tenantName = tenant?.name ?? "";
           token.tenantSlug = tenant?.slug ?? "";
           token.assignedTenantIds = assignedTenantIds;
+          token.clientCompanyName = dbUser.client_company_name ?? "";
         }
       } else if (user) {
         const authUser = user as {
@@ -204,6 +206,7 @@ export const authOptions: NextAuthOptions = {
           tenantName: string;
           tenantSlug: string;
           assignedTenantIds: string[];
+          clientCompanyName: string;
         };
         token.id = user.id;
         token.role = authUser.role;
@@ -211,6 +214,7 @@ export const authOptions: NextAuthOptions = {
         token.tenantName = authUser.tenantName;
         token.tenantSlug = authUser.tenantSlug;
         token.assignedTenantIds = authUser.assignedTenantIds ?? [];
+        token.clientCompanyName = authUser.clientCompanyName ?? "";
       }
       return token;
     },
@@ -223,6 +227,7 @@ export const authOptions: NextAuthOptions = {
         session.user.tenantName = token.tenantName as string;
         session.user.tenantSlug = token.tenantSlug as string;
         session.user.assignedTenantIds = (token.assignedTenantIds as string[]) ?? [];
+        session.user.clientCompanyName = (token.clientCompanyName as string) ?? "";
       }
       return session;
     },

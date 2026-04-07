@@ -76,6 +76,7 @@ export function formatUser(user: any): Record<string, string> {
     isActive: user.is_active ? "true" : "false",
     googleId: user.google_id ?? "",
     avatarUrl: user.avatar_url ?? "",
+    clientCompanyName: user.client_company_name ?? "",
     createdAt: user.created_at ?? "",
     updatedAt: user.updated_at ?? "",
   };

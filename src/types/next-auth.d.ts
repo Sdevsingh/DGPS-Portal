@@ -11,6 +11,7 @@ declare module "next-auth" {
       tenantName: string;
       tenantSlug: string;
       assignedTenantIds: string[];
+      clientCompanyName: string;
     };
   }
 
@@ -21,6 +22,7 @@ declare module "next-auth" {
     tenantName: string;
     tenantSlug: string;
     assignedTenantIds: string[];
+    clientCompanyName: string;
   }
 }
 
@@ -32,6 +34,7 @@ declare module "next-auth/jwt" {
     tenantName: string;
     tenantSlug: string;
     assignedTenantIds: string[];
+    clientCompanyName: string;
   }
 }
 
