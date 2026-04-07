@@ -90,15 +90,17 @@ function MetricCard({ label, value, icon, accent, href }: { label: string; value
       {/* Top accent bar */}
       <div className={`absolute top-0 left-0 right-0 h-[3px] ${accent} rounded-t-2xl`} />
 
-      <div className="relative flex items-start justify-between mb-4">
+      {/* Icon centered */}
+      <div className="relative flex justify-center mb-4">
         <div className={`w-10 h-10 rounded-xl ${s.iconBg} ${s.iconText} flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-200`}>
           {icon}
         </div>
-        <span className={`text-[10px] font-semibold uppercase tracking-widest ${s.iconText} opacity-70 pt-1`}>{label}</span>
       </div>
 
+      {/* Number → Label → View all — all left-aligned, label always on one line */}
       <div className="relative flex-1 flex flex-col justify-end">
         <p className={`text-4xl font-black leading-none tracking-tight ${s.valuText}`}>{value}</p>
+        <p className={`text-xs font-semibold uppercase tracking-widest ${s.iconText} opacity-70 mt-2`}>{label}</p>
         <div className="mt-3 flex items-center gap-1 text-xs text-gray-400 group-hover:text-gray-600 transition-colors">
           <span>View all</span><IconChevron />
         </div>
