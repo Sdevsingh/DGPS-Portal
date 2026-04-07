@@ -147,10 +147,7 @@ export async function POST(req: NextRequest) {
       description: body.description ?? "",
       category: body.category ?? "General Maintenance",
       priority: body.priority ?? "medium",
-      // "public_form" is the closest valid enum value for client portal submissions.
-      // Run scripts/migrate-add-customer-contact.sql to add 'portal' enum value,
-      // then this can be changed to: isClient ? "portal" : (body.source ?? "manual")
-      source: isClient ? "public_form" : (body.source ?? "manual"),
+      source: isClient ? "portal" : (body.source ?? "manual"),
       job_status: "new",
       quote_status: "pending",
       payment_status: "unpaid",
