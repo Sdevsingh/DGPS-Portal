@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { role, tenantId, id: userId, assignedTenantIds } = session.user;
+  const { role, tenantId, id: userId, email: userEmail, assignedTenantIds } = session.user;
   const { searchParams } = new URL(req.url);
 
   const status = searchParams.get("status");
@@ -35,7 +35,8 @@ export async function GET(req: NextRequest) {
   } else if (role === "technician") {
     q = q.eq("tenant_id", tenantId).eq("assigned_to_id", userId);
   } else if (role === "client") {
-    q = q.eq("tenant_id", tenantId);
+    // Clients see only their own jobs: those they created OR where agent_email matches their login email
+    q = q.eq("tenant_id", tenantId).or(`agent_email.eq.${userEmail},created_by_user_id.eq.${userId}`);
   } else {
     q = q.eq("tenant_id", tenantId);
   }

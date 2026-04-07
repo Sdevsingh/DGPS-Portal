@@ -129,10 +129,16 @@ export const authOptions: NextAuthOptions = {
         .from("jobs")
         .select("tenant_id")
         .eq("agent_email", email)
-        .order("created_at", { ascending: false })
-        .limit(1);
+        .order("created_at", { ascending: false });
 
-      const tenantId = jobMatches?.[0]?.tenant_id ?? null;
+      // If this email appears in multiple tenants we can't safely auto-provision
+      const uniqueTenants = [...new Set((jobMatches ?? []).map((j) => j.tenant_id))];
+      if (uniqueTenants.length > 1) {
+        console.warn(`[Auth] Google sign-in blocked: ${email} matches ${uniqueTenants.length} tenants`);
+        return "/login?error=google-new-user";
+      }
+
+      const tenantId = uniqueTenants[0] ?? null;
 
       if (!tenantId) {
         // Completely unknown email — no jobs found, no existing account.
