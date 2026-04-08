@@ -40,6 +40,7 @@ export default async function JobsPage({
     inspectionRequired?: string;
     company?: string;
     pendingOn?: string;
+    agentName?: string;
   }>;
 }) {
   const params = await searchParams;
@@ -71,6 +72,7 @@ export default async function JobsPage({
   if (params.quoteStatus) jobQ = jobQ.eq("quote_status", params.quoteStatus);
   if (params.priority) jobQ = jobQ.eq("priority", params.priority);
   if (params.paymentStatus) jobQ = jobQ.eq("payment_status", params.paymentStatus);
+  if (params.agentName) jobQ = jobQ.eq("agent_name", params.agentName);
 
   // Fetch tenants for super_admin (for filter + display)
   let tenants: { id: string; name: string }[] = [];
@@ -82,6 +84,12 @@ export default async function JobsPage({
 
   const { data: allJobsRaw } = await jobQ.order("created_at", { ascending: false });
   let jobs = (allJobsRaw ?? []).map(formatJob);
+
+  // Distinct agent names for the filter dropdown (ops/admin only)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const agentNames: string[] = role === "super_admin" || role === "operations_manager"
+    ? [...new Set(((allJobsRaw ?? []) as any[]).map((j) => j.agent_name as string).filter((n): n is string => !!n))].sort()
+    : [];
 
   // Get threads for pendingOn filter
   const jobIds = jobs.map((j: { id: string }) => j.id);
@@ -140,15 +148,20 @@ export default async function JobsPage({
       </div>
 
       <Suspense fallback={null}>
-        <JobFilters tenants={tenants} showCompanyFilter={role === "super_admin"} />
+        <JobFilters
+          tenants={tenants}
+          showCompanyFilter={role === "super_admin"}
+          agentNames={agentNames}
+          showAgentFilter={role === "super_admin" || role === "operations_manager"}
+        />
       </Suspense>
 
-      <div className="bg-white border border-gray-200 rounded-2xl divide-y divide-gray-100 shadow-sm">
+      <div className="bg-white border border-gray-200 rounded-2xl divide-y divide-gray-100 shadow-sm overflow-hidden">
         {jobs.map((job: Record<string, string>) => {
           const thread = threadMap.get(job.id);
           const needsReply = thread?.pendingOn === "team";
           return (
-            <Link key={job.id} href={`/jobs/${job.id}`} className="flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition-colors group">
+            <Link key={job.id} href={`/jobs/${job.id}`} className="flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition-colors group first:rounded-t-2xl last:rounded-b-2xl">
               <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${PRIORITY_DOT[job.priority] ?? "bg-gray-300"}`} />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap mb-0.5">
