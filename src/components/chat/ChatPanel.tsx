@@ -307,8 +307,8 @@ export default function ChatPanel({ threadId, initialMessages }: Props) {
           className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center hover:bg-blue-700 disabled:opacity-40 transition-all active:scale-95"
           data-testid="chat-send-button"
         >
-          <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+          <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M2 21l21-9L2 3v7l15 2-15 2z" />
           </svg>
         </button>
       </div>
