@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
+import * as Select from "@radix-ui/react-select";
 
 // ─── Country codes ────────────────────────────────────────────────────────────
 
@@ -63,7 +64,10 @@ type FormState = {
   email: string;
   countryCode: string;
   phoneNumber: string;
-  propertyAddress: string;
+  streetAddress: string;
+  suburb: string;
+  state: string;
+  postcode: string;
   description: string;
   category: string;
   inspectionRequired: boolean;
@@ -80,7 +84,8 @@ function formReducer(state: FormState, action: FormAction): FormState {
 
 const INITIAL_FORM: FormState = {
   name: "", email: "", countryCode: "+61", phoneNumber: "",
-  propertyAddress: "", description: "", category: "Plumbing",
+  streetAddress: "", suburb: "", state: "VIC", postcode: "",
+  description: "", category: "Plumbing",
   inspectionRequired: false, password: "", confirmPassword: "", _honeypot: "",
 };
 
@@ -303,8 +308,8 @@ const labelCls = "block text-sm font-medium text-gray-700 mb-1.5";
 
 function Toggle({ checked, onChange, label, hint }: { checked: boolean; onChange: () => void; label: string; hint: string }) {
   return (
-    <div className="flex items-center justify-between px-4 py-3 border border-gray-200 rounded-xl bg-white">
-      <div>
+    <div className="flex items-center justify-between px-4 py-4 border border-gray-200 rounded-xl bg-white gap-4">
+      <div className="min-w-0">
         <p className="font-medium text-gray-900 text-sm">{label}</p>
         <p className="text-xs text-gray-400 mt-0.5">{hint}</p>
       </div>
@@ -313,10 +318,93 @@ function Toggle({ checked, onChange, label, hint }: { checked: boolean; onChange
         onClick={onChange}
         role="switch"
         aria-checked={checked}
-        className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 shrink-0 ${checked ? "bg-blue-600" : "bg-gray-300"}`}
+        style={{ minWidth: "2.75rem" }}
+        className={`relative h-6 w-11 rounded-full transition-colors duration-200 focus:outline-none shrink-0 ${checked ? "bg-blue-600" : "bg-gray-200"}`}
       >
-        <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${checked ? "translate-x-[1.375rem]" : "translate-x-0.5"}`} />
+        <span
+          className="absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-200"
+          style={{ transform: checked ? "translateX(1.25rem)" : "translateX(0)" }}
+        />
       </button>
+    </div>
+  );
+}
+
+// ─── Address fields ───────────────────────────────────────────────────────────
+
+const AU_STATES = ["ACT", "NSW", "NT", "QLD", "SA", "TAS", "VIC", "WA"];
+
+function StateSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <Select.Root value={value} onValueChange={onChange}>
+      <Select.Trigger className="w-full flex items-center justify-between px-4 py-3 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-400 transition-all bg-white text-gray-900 cursor-pointer">
+        <Select.Value />
+        <Select.Icon>
+          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </Select.Icon>
+      </Select.Trigger>
+      <Select.Portal>
+        <Select.Content position="popper" sideOffset={4} className="z-50 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden min-w-[120px]">
+          <Select.Viewport className="p-1">
+            {AU_STATES.map((s) => (
+              <Select.Item key={s} value={s} className="flex items-center justify-between px-3 py-2 text-sm text-gray-700 rounded-lg cursor-pointer outline-none data-[highlighted]:bg-blue-50 data-[highlighted]:text-blue-700 data-[state=checked]:font-semibold data-[state=checked]:text-blue-700">
+                <Select.ItemText>{s}</Select.ItemText>
+                <Select.ItemIndicator>
+                  <svg className="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                  </svg>
+                </Select.ItemIndicator>
+              </Select.Item>
+            ))}
+          </Select.Viewport>
+        </Select.Content>
+      </Select.Portal>
+    </Select.Root>
+  );
+}
+
+function AddressFields({ form, set }: { form: FormState; set: (field: keyof FormState, value: string) => void }) {
+  return (
+    <div className="space-y-3">
+      <div>
+        <label className={labelCls}>Street Address *</label>
+        <input
+          required
+          value={form.streetAddress}
+          onChange={(e) => set("streetAddress", e.target.value)}
+          className={inputCls}
+          placeholder="e.g. 42 Harbour View Drive"
+        />
+      </div>
+      <div className="grid grid-cols-3 gap-3">
+        <div>
+          <label className={labelCls}>Suburb *</label>
+          <input
+            required
+            value={form.suburb}
+            onChange={(e) => set("suburb", e.target.value)}
+            className={inputCls}
+            placeholder="e.g. Pyrmont"
+          />
+        </div>
+        <div>
+          <label className={labelCls}>State *</label>
+          <StateSelect value={form.state} onChange={(v) => set("state", v)} />
+        </div>
+        <div>
+          <label className={labelCls}>Postcode *</label>
+          <input
+            required
+            maxLength={4}
+            value={form.postcode}
+            onChange={(e) => set("postcode", e.target.value.replace(/\D/g, ""))}
+            className={inputCls}
+            placeholder="3000"
+          />
+        </div>
+      </div>
     </div>
   );
 }
@@ -484,7 +572,8 @@ export default function PublicRequestPage() {
   const passwordMismatch = form.confirmPassword.length > 0 && form.password !== form.confirmPassword;
   const passwordTooShort = form.password.length > 0 && form.password.length < 8;
 
-  const step1Valid = !!(form.name && form.email && phoneValid && form.propertyAddress && form.description);
+  const fullAddress = [form.streetAddress, form.suburb, form.state, form.postcode].filter(Boolean).join(", ");
+  const step1Valid = !!(form.name && form.email && phoneValid && form.streetAddress && form.suburb && form.postcode && form.description);
   const step2Valid = returningClient || isLoggedInClient || (form.password.length >= 8 && form.password === form.confirmPassword);
 
   // ─── Navigate to step 2 ──────────────────────────────────────────────────
@@ -534,7 +623,7 @@ export default function PublicRequestPage() {
           name: form.name,
           email: form.email,
           phone: fullPhone,
-          propertyAddress: form.propertyAddress,
+          propertyAddress: fullAddress,
           description: form.description,
           category: form.category,
           inspectionRequired: form.inspectionRequired,
@@ -647,10 +736,7 @@ export default function PublicRequestPage() {
                 onNumberChange={(v) => set("phoneNumber", v)}
               />
 
-              <div>
-                <label className={labelCls}>Property Address *</label>
-                <input required value={form.propertyAddress} onChange={(e) => set("propertyAddress", e.target.value)} className={inputCls} placeholder="123 Smith St, Melbourne VIC 3000" />
-              </div>
+              <AddressFields form={form} set={set} />
 
               <div>
                 <label className={labelCls}>Service Type</label>
@@ -675,7 +761,7 @@ export default function PublicRequestPage() {
 
               {error && <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">{error}</div>}
 
-              <SubmitButton loading={loading} disabled={!form.propertyAddress || !form.description} label="Submit Job Request" />
+              <SubmitButton loading={loading} disabled={!form.streetAddress || !form.suburb || !form.postcode || !form.description} label="Submit Job Request" />
             </form>
           </div>
         </div>
@@ -748,10 +834,7 @@ export default function PublicRequestPage() {
                     onNumberChange={(v) => set("phoneNumber", v)}
                   />
 
-                  <div>
-                    <label className={labelCls}>Property Address *</label>
-                    <input required value={form.propertyAddress} onChange={(e) => set("propertyAddress", e.target.value)} className={inputCls} placeholder="123 Smith St, Melbourne VIC 3000" />
-                  </div>
+                  <AddressFields form={form} set={set} />
 
                   <div>
                     <label className={labelCls}>Service Type</label>

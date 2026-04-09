@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-server";
-import { formatJob } from "@/lib/db";
 import bcrypt from "bcryptjs";
 
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -75,10 +74,12 @@ export async function POST(req: NextRequest) {
       tenant_id: tenant.id,
       job_number: jobNumber,
       date_received: new Date().toISOString(),
-      company_name: tenant.name,
-      agent_name: name,
-      agent_contact: phone,
-      agent_email: email.toLowerCase(),
+      company_name: name,
+      agent_name: null,
+      agent_contact: null,
+      agent_email: null,
+      customer_contact: phone,
+      customer_email: email.toLowerCase(),
       property_address: propertyAddress,
       description,
       category: category ?? "General Maintenance",

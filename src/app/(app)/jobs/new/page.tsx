@@ -25,9 +25,8 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: () => void 
       }`}
     >
       <span
-        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform duration-200 ${
-          checked ? "translate-x-[1.375rem]" : "translate-x-0.5"
-        }`}
+        className="inline-block h-5 w-5 rounded-full bg-white shadow transition-transform duration-200"
+        style={{ transform: checked ? "translateX(1.375rem)" : "translateX(0.125rem)" }}
       />
     </button>
   );
