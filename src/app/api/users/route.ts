@@ -4,6 +4,10 @@ import { authOptions } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { formatUser } from "@/lib/db";
 import bcrypt from "bcryptjs";
+import { Resend } from "resend";
+import crypto from "crypto";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -47,8 +51,8 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { name, email, phone, userRole, password } = body;
 
-  if (!name || !email || !userRole || !password) {
-    return NextResponse.json({ error: "name, email, role, and password are required" }, { status: 400 });
+  if (!name || !email || !userRole) {
+    return NextResponse.json({ error: "name, email, and role are required" }, { status: 400 });
   }
 
   // Ops manager can only create technicians
@@ -78,7 +82,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Email already in use for this company" }, { status: 409 });
   }
 
-  const passwordHash = await bcrypt.hash(password, 10);
+  const passwordHash = password ? await bcrypt.hash(password, 10) : null;
 
   const { data: user, error } = await supabaseAdmin
     .from("users")
@@ -95,6 +99,68 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Send welcome email with password setup link
+  try {
+    const token = crypto.randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // 24h
+
+    await supabaseAdmin.from("password_resets").insert({
+      email: email.toLowerCase(),
+      token,
+      expires_at: expiresAt,
+      used: false,
+    });
+
+    const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+    const setPasswordUrl = `${baseUrl}/reset-password?token=${token}`;
+    const loginUrl = `${baseUrl}/login`;
+    const toEmail = process.env.RESEND_TEST_EMAIL ?? email.toLowerCase();
+
+    await resend.emails.send({
+      from: `Domain Group Property Services <${process.env.RESEND_FROM ?? "noreply@dgps.com.au"}>`,
+      replyTo: process.env.RESEND_REPLY_TO,
+      to: toEmail,
+      subject: "Welcome to DGPS Portal — Your access is ready",
+      html: `
+        <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px 24px;background:#f9fafb;">
+          <div style="background:#fff;border-radius:16px;padding:32px;border:1px solid #e5e7eb;">
+            <div style="margin-bottom:24px;">
+              <h1 style="font-size:18px;font-weight:800;color:#1e3a5f;margin:0;">Domain Group</h1>
+              <p style="font-size:12px;color:#6b7280;margin:2px 0 0;">Property Services Portal</p>
+            </div>
+            <h2 style="font-size:20px;font-weight:700;color:#111827;margin-bottom:8px;">Welcome, ${name} 👋</h2>
+            <p style="color:#6b7280;font-size:14px;margin-bottom:24px;line-height:1.6;">
+              Your DGPS portal account has been created. You have two ways to access the portal:
+            </p>
+
+            <div style="background:#eff6ff;border-radius:12px;padding:16px 20px;margin-bottom:16px;border:1px solid #dbeafe;">
+              <p style="font-size:13px;font-weight:600;color:#1d4ed8;margin:0 0 4px;">Option 1 — Sign in with Google</p>
+              <p style="font-size:13px;color:#374151;margin:0 0 12px;">Use your company email <strong>${email}</strong> to sign in instantly with Google.</p>
+              <a href="${loginUrl}" style="display:inline-block;background:#2563eb;color:#fff;font-weight:600;font-size:13px;padding:10px 22px;border-radius:8px;text-decoration:none;">
+                Sign in with Google →
+              </a>
+            </div>
+
+            <div style="background:#f9fafb;border-radius:12px;padding:16px 20px;margin-bottom:24px;border:1px solid #e5e7eb;">
+              <p style="font-size:13px;font-weight:600;color:#374151;margin:0 0 4px;">Option 2 — Set a Password</p>
+              <p style="font-size:13px;color:#6b7280;margin:0 0 12px;">Prefer email &amp; password? Click below to set your password. This link expires in <strong>24 hours</strong>.</p>
+              <a href="${setPasswordUrl}" style="display:inline-block;background:#fff;color:#374151;font-weight:600;font-size:13px;padding:10px 22px;border-radius:8px;text-decoration:none;border:1px solid #d1d5db;">
+                Set My Password →
+              </a>
+            </div>
+
+            <p style="color:#9ca3af;font-size:12px;margin-top:24px;padding-top:16px;border-top:1px solid #f3f4f6;">
+              If you weren't expecting this email, please ignore it or contact us at <a href="mailto:DomainServices33@gmail.com" style="color:#2563eb;">DomainServices33@gmail.com</a>
+            </p>
+          </div>
+        </div>
+      `,
+    });
+  } catch (emailErr) {
+    // Non-fatal — user is created, email failure shouldn't block the response
+    console.error("[users/create] Welcome email failed:", emailErr);
+  }
 
   return NextResponse.json(formatUser(user), { status: 201 });
 }

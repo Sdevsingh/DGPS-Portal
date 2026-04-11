@@ -12,9 +12,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Forbidden — reports are admin only" }, { status: 403 });
   }
 
+  const since = new Date();
+  since.setDate(since.getDate() - 10);
+
   const [{ data: jobs }, { data: threads }] = await Promise.all([
-    supabaseAdmin.from("jobs").select("*").order("created_at", { ascending: false }),
-    supabaseAdmin.from("chat_threads").select("*"),
+    supabaseAdmin.from("jobs").select("*").gte("created_at", since.toISOString()).order("created_at", { ascending: false }),
+    supabaseAdmin.from("chat_threads").select("*").gte("created_at", since.toISOString()),
   ]);
 
   const wb = XLSX.utils.book_new();
@@ -82,7 +85,7 @@ export async function GET(req: NextRequest) {
   return new NextResponse(buf, {
     headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": `attachment; filename="dgps-report-${new Date().toISOString().slice(0, 10)}.xlsx"`,
+      "Content-Disposition": `attachment; filename="DGPS-OPS-REPORT-${new Date().toLocaleDateString("en-AU").replace(/\//g, "-")}.xlsx"`,
     },
   });
 }

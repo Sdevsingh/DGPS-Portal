@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
+import * as Select from "@radix-ui/react-select";
 
 const COUNTRY_CODES = [
   { code: "+61", label: "🇦🇺 +61", placeholder: "04xx xxx xxx" },
@@ -58,7 +59,10 @@ export default function NewJobPage() {
   const [submitError, setSubmitError] = useState("");
 
   // ── Shared fields ────────────────────────────────────────────────────────────
-  const [propertyAddress, setPropertyAddress] = useState("");
+  const [streetAddress, setStreetAddress] = useState("");
+  const [suburb, setSuburb] = useState("");
+  const [addrState, setAddrState] = useState("VIC");
+  const [postcode, setPostcode] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("General Maintenance");
   const [inspectionRequired, setInspectionRequired] = useState(false);
@@ -104,6 +108,8 @@ export default function NewJobPage() {
     setLoading(true);
     setSubmitError("");
 
+    const fullAddress = `${streetAddress.trim()}, ${suburb.trim()} ${addrState} ${postcode.trim()}`;
+
     try {
       const payload = isClient
         ? {
@@ -113,7 +119,7 @@ export default function NewJobPage() {
             companyName:     customerName.trim(),
             customerEmail:   customerEmail.trim(),
             customerContact: `${customerCountryCode} ${customerPhone.trim()}`,
-            propertyAddress: propertyAddress.trim(),
+            propertyAddress: fullAddress,
             category,
             description:     description.trim(),
             inspectionRequired: String(inspectionRequired),
@@ -127,7 +133,7 @@ export default function NewJobPage() {
             agentEmail:      opsForm.agentEmail.trim(),
             priority:        opsForm.priority,
             source:          opsForm.source,
-            propertyAddress: propertyAddress.trim(),
+            propertyAddress: fullAddress,
             category,
             description:     description.trim(),
             inspectionRequired: String(inspectionRequired),
@@ -394,10 +400,45 @@ export default function NewJobPage() {
           )}
 
           <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2">
-              <label className={labelCls}>Property Address *</label>
-              <input required value={propertyAddress} onChange={(e) => setPropertyAddress(e.target.value)}
-                className={inputCls} placeholder="123 Smith St, Sydney NSW 2000" />
+            <div className="col-span-2 space-y-3">
+              <div>
+                <label className={labelCls}>Street Address *</label>
+                <input required value={streetAddress} onChange={(e) => setStreetAddress(e.target.value)}
+                  className={inputCls} placeholder="e.g. 42 Harbour View Drive" />
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className={labelCls}>Suburb *</label>
+                  <input required value={suburb} onChange={(e) => setSuburb(e.target.value)}
+                    className={inputCls} placeholder="e.g. Pyrmont" />
+                </div>
+                <div>
+                  <label className={labelCls}>State *</label>
+                  <Select.Root value={addrState} onValueChange={setAddrState}>
+                    <Select.Trigger className="w-full flex items-center justify-between px-4 py-3 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 cursor-pointer">
+                      <Select.Value />
+                      <Select.Icon><svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg></Select.Icon>
+                    </Select.Trigger>
+                    <Select.Portal>
+                      <Select.Content position="popper" sideOffset={4} className="z-50 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden min-w-[120px]">
+                        <Select.Viewport className="p-1">
+                          {["ACT","NSW","NT","QLD","SA","TAS","VIC","WA"].map((s) => (
+                            <Select.Item key={s} value={s} className="flex items-center justify-between px-3 py-2 text-sm text-gray-700 rounded-lg cursor-pointer outline-none data-[highlighted]:bg-blue-50 data-[highlighted]:text-blue-700 data-[state=checked]:font-semibold data-[state=checked]:text-blue-700">
+                              <Select.ItemText>{s}</Select.ItemText>
+                              <Select.ItemIndicator><svg className="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg></Select.ItemIndicator>
+                            </Select.Item>
+                          ))}
+                        </Select.Viewport>
+                      </Select.Content>
+                    </Select.Portal>
+                  </Select.Root>
+                </div>
+                <div>
+                  <label className={labelCls}>Postcode *</label>
+                  <input required maxLength={4} value={postcode} onChange={(e) => setPostcode(e.target.value.replace(/\D/g, ""))}
+                    className={inputCls} placeholder="2000" />
+                </div>
+              </div>
             </div>
 
             <div className={isClient ? "col-span-2" : "col-span-1"}>

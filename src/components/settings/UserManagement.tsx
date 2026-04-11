@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import * as Select from "@radix-ui/react-select";
 
 type User = Record<string, string>;
 type Tenant = Record<string, string>;
@@ -18,6 +19,13 @@ const ROLE_LABEL: Record<string, string> = {
   operations_manager: "Ops Manager",
   technician: "Technician",
   client: "Client",
+};
+
+const ROLE_DOT: Record<string, string> = {
+  super_admin: "bg-red-500",
+  operations_manager: "bg-purple-500",
+  technician: "bg-blue-500",
+  client: "bg-emerald-500",
 };
 
 export default function UserManagement({
@@ -52,7 +60,7 @@ export default function UserManagement({
     setForm((p) => ({ ...p, [key]: val }));
   }
 
-  async function handleAdd(e: React.FormEvent) {
+  async function handleAdd(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
     setSaving(true);
@@ -136,32 +144,64 @@ export default function UserManagement({
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">Role *</label>
-                <select value={form.userRole} onChange={(e) => setField("userRole", e.target.value)}
-                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  {allowedRoles.map((r) => (
-                    <option key={r} value={r}>{ROLE_LABEL[r]}</option>
-                  ))}
-                </select>
+                <Select.Root value={form.userRole} onValueChange={(v) => setField("userRole", v)}>
+                  <Select.Trigger className="w-full flex items-center justify-between px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 cursor-pointer">
+                    <div className="flex items-center gap-2">
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${ROLE_DOT[form.userRole] ?? "bg-gray-400"}`} />
+                      <Select.Value />
+                    </div>
+                    <Select.Icon><svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg></Select.Icon>
+                  </Select.Trigger>
+                  <Select.Portal>
+                    <Select.Content position="popper" sideOffset={4} className="z-50 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden min-w-[200px]">
+                      <Select.Viewport className="p-1">
+                        {allowedRoles.map((r) => (
+                          <Select.Item key={r} value={r} className="flex items-center gap-2.5 px-3 py-2.5 text-sm text-gray-700 rounded-lg cursor-pointer outline-none data-[highlighted]:bg-blue-50 data-[highlighted]:text-blue-700 data-[state=checked]:font-semibold data-[state=checked]:text-blue-700">
+                            <span className={`w-2 h-2 rounded-full shrink-0 ${ROLE_DOT[r] ?? "bg-gray-400"}`} />
+                            <Select.ItemText>{ROLE_LABEL[r]}</Select.ItemText>
+                            <Select.ItemIndicator className="ml-auto"><svg className="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg></Select.ItemIndicator>
+                          </Select.Item>
+                        ))}
+                      </Select.Viewport>
+                    </Select.Content>
+                  </Select.Portal>
+                </Select.Root>
               </div>
               {isSuperAdmin && tenants.length > 0 && (
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">Company *</label>
-                  <select value={form.tenantId} onChange={(e) => setField("tenantId", e.target.value)}
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    {tenants.map((t) => (
-                      <option key={t.id} value={t.id}>{t.name}</option>
-                    ))}
-                  </select>
+                  <Select.Root value={form.tenantId} onValueChange={(v) => setField("tenantId", v)}>
+                    <Select.Trigger className="w-full flex items-center justify-between px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 cursor-pointer">
+                      <Select.Value />
+                      <Select.Icon><svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg></Select.Icon>
+                    </Select.Trigger>
+                    <Select.Portal>
+                      <Select.Content position="popper" sideOffset={4} className="z-50 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden min-w-[220px]">
+                        <Select.Viewport className="p-1">
+                          {tenants.map((t) => (
+                            <Select.Item key={t.id} value={t.id} className="flex items-center gap-2 px-3 py-2.5 text-sm text-gray-700 rounded-lg cursor-pointer outline-none data-[highlighted]:bg-blue-50 data-[highlighted]:text-blue-700 data-[state=checked]:font-semibold data-[state=checked]:text-blue-700">
+                              <Select.ItemText>{t.name}</Select.ItemText>
+                              <Select.ItemIndicator className="ml-auto"><svg className="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg></Select.ItemIndicator>
+                            </Select.Item>
+                          ))}
+                        </Select.Viewport>
+                      </Select.Content>
+                    </Select.Portal>
+                  </Select.Root>
                 </div>
               )}
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Password *</label>
-                <input required type="password" value={form.password} onChange={(e) => setField("password", e.target.value)}
-                  placeholder="Min 8 characters"
-                  minLength={8}
-                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              </div>
             </div>
+
+            {/* Welcome email notice */}
+            <div className="flex items-start gap-2.5 px-3 py-3 bg-blue-50 border border-blue-100 rounded-xl">
+              <svg className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+              <p className="text-xs text-blue-700 leading-relaxed">
+                A welcome email will be sent to <strong>{form.email || "the user"}</strong> with a link to set their password and instructions to sign in with Google.
+              </p>
+            </div>
+
             <div className="flex gap-2 pt-1">
               <button type="button" onClick={() => { setShowAdd(false); setError(""); }}
                 className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50">

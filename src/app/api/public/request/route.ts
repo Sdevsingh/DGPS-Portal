@@ -115,26 +115,15 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (thread) {
-    await supabaseAdmin.from("messages").insert([
-      {
-        tenant_id: tenant.id,
-        thread_id: thread.id,
-        sender_id: null,
-        sender_name: "System",
-        sender_role: "system",
-        type: "system",
-        content: `Job request submitted by ${name} (${email} · ${phone})`,
-      },
-      {
-        tenant_id: tenant.id,
-        thread_id: thread.id,
-        sender_id: existingClient?.id ?? null,
-        sender_name: name,
-        sender_role: "client",
-        type: "text",
-        content: description,
-      },
-    ]);
+    await supabaseAdmin.from("messages").insert({
+      tenant_id: tenant.id,
+      thread_id: thread.id,
+      sender_id: null,
+      sender_name: "System",
+      sender_role: "system",
+      type: "system",
+      content: `Job request submitted by ${name} (${email} · ${phone})`,
+    });
   }
 
   // Create client account if new
