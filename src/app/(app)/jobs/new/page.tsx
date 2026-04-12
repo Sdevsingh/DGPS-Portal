@@ -62,36 +62,10 @@ export default function NewJobPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
 
-  const role = session?.user?.role;
-  const isClient = role === "client";
-
-  useEffect(() => {
-    if (status === "loading") return;
-    if (!session || (role !== "operations_manager" && role !== "client")) {
-      router.replace(role === "technician" ? "/technician" : "/dashboard");
-    }
-  }, [session, status, role, router]);
-
-  if (status === "loading") {
-    return (
-      <div className="flex items-center justify-center h-full min-h-[60vh]">
-        <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
-
+  // ── All hooks must be declared before any conditional returns ────────────────
   const [loading, setLoading] = useState(false);
   const [submitError, setSubmitError] = useState("");
-
-  // Field-level validation errors
   const [errors, setErrors] = useState<Record<string, string>>({});
-
-  function setErr(field: string, msg: string) {
-    setErrors((prev) => ({ ...prev, [field]: msg }));
-  }
-  function clearErr(field: string) {
-    setErrors((prev) => { const n = { ...prev }; delete n[field]; return n; });
-  }
 
   // ── Shared fields ────────────────────────────────────────────────────────────
   const [streetAddress, setStreetAddress] = useState("");
@@ -103,11 +77,6 @@ export default function NewJobPage() {
   const [inspectionRequired, setInspectionRequired] = useState(false);
 
   // ── Client-only fields ───────────────────────────────────────────────────────
-  // agent_name       = the DGPS staff member raising this job
-  // agent_contact    = their direct phone
-  // agent_email      = their personal direct email (for direct contact — NOT the shared login email)
-  // company_name     = end customer name (person who requested the service)
-  // customer_contact = end customer's phone
   const [agentName, setAgentName]                     = useState("");
   const [agentEmail, setAgentEmail]                   = useState("");
   const [agentCountryCode, setAgentCountryCode]       = useState("+61");
@@ -131,12 +100,37 @@ export default function NewJobPage() {
     source: "manual",
   });
 
+  const role = session?.user?.role;
+  const isClient = role === "client";
+
+  useEffect(() => {
+    if (status === "loading") return;
+    if (!session || (role !== "operations_manager" && role !== "client")) {
+      router.replace(role === "technician" ? "/technician" : "/dashboard");
+    }
+  }, [session, status, role, router]);
+
   function setOps(key: string, value: string) {
     setOpsForm((prev) => ({ ...prev, [key]: value }));
   }
 
+  function setErr(field: string, msg: string) {
+    setErrors((prev) => ({ ...prev, [field]: msg }));
+  }
+  function clearErr(field: string) {
+    setErrors((prev) => { const n = { ...prev }; delete n[field]; return n; });
+  }
+
   const selectedAgentCountry    = COUNTRY_CODES.find((c) => c.code === agentCountryCode)    ?? COUNTRY_CODES[0];
   const selectedCustomerCountry = COUNTRY_CODES.find((c) => c.code === customerCountryCode) ?? COUNTRY_CODES[0];
+
+  if (status === "loading") {
+    return (
+      <div className="flex items-center justify-center h-full min-h-[60vh]">
+        <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   async function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
