@@ -96,7 +96,7 @@ export const authOptions: NextAuthOptions = {
       const existing = existingUsers?.[0] ?? null;
 
       if (existing) {
-        // ── Google sign-in is ONLY permitted for client accounts.
+        // Google sign-in is ONLY permitted for client accounts.
         // Super admins, operations managers, and technicians must use
         // email + password — their accounts are provisioned by a super admin.
         if (existing.role !== "client") {
@@ -143,7 +143,6 @@ export const authOptions: NextAuthOptions = {
 
       if (!tenantId) {
         // Completely unknown email — no jobs found, no existing account.
-        // Redirect to a helpful error so they can submit a request first.
         return "/login?error=google-new-user";
       }
 
@@ -216,6 +215,7 @@ export const authOptions: NextAuthOptions = {
         token.assignedTenantIds = authUser.assignedTenantIds ?? [];
         token.clientCompanyName = authUser.clientCompanyName ?? "";
       }
+
       return token;
     },
 

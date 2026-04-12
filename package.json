@@ -11,6 +11,7 @@
     "test:chat": "tsx --env-file=.env scripts/test-chat-persistence.ts"
   },
   "dependencies": {
+    "@netlify/plugin-nextjs": "^5.15.9",
     "@radix-ui/react-label": "^2.1.8",
     "@radix-ui/react-select": "^2.2.6",
     "@radix-ui/react-separator": "^1.1.8",

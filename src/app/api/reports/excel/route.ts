@@ -15,13 +15,15 @@ export async function GET(req: NextRequest) {
   const since = new Date();
   since.setDate(since.getDate() - 10);
 
-  const [{ data: jobs }, { data: threads }] = await Promise.all([
+  const [{ data: jobs }, { data: threads }, { data: users }] = await Promise.all([
     supabaseAdmin.from("jobs").select("*").gte("created_at", since.toISOString()).order("created_at", { ascending: false }),
     supabaseAdmin.from("chat_threads").select("*").gte("created_at", since.toISOString()),
+    supabaseAdmin.from("users").select("*, tenants(name, slug)").eq("is_active", true).order("created_at", { ascending: false }),
   ]);
 
   const wb = XLSX.utils.book_new();
 
+  // ── Sheet 1: Job Summary ──────────────────────────────────────────────────
   const jobRows = (jobs ?? []).map((j) => ({
     "Job ID": j.job_number,
     Company: j.company_name,
@@ -42,6 +44,7 @@ export async function GET(req: NextRequest) {
   }));
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(jobRows), "Job Summary");
 
+  // ── Sheet 2: Performance ──────────────────────────────────────────────────
   const allJobs = jobs ?? [];
   const perfRows = [
     { Metric: "Total Jobs", Value: allJobs.length },
@@ -63,6 +66,7 @@ export async function GET(req: NextRequest) {
   ];
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(perfRows), "Performance");
 
+  // ── Sheet 3: Communication ────────────────────────────────────────────────
   const threadMap = new Map((threads ?? []).map((t) => [t.job_id, t]));
   const commRows = (jobs ?? []).map((j) => {
     const t = threadMap.get(j.id);
@@ -79,6 +83,24 @@ export async function GET(req: NextRequest) {
     };
   });
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(commRows), "Communication");
+
+  // ── Sheet 4: Users & Access ───────────────────────────────────────────────
+  const userRows = (users ?? []).map((u) => {
+    const tenant = Array.isArray(u.tenants) ? u.tenants[0] : u.tenants;
+    return {
+      "User ID": u.id,
+      Name: u.name,
+      Email: u.email,
+      Role: u.role,
+      Company: tenant?.name ?? "",
+      "Company Slug": tenant?.slug ?? "",
+      Phone: u.phone ?? "",
+      "Google Sign-In": u.google_id ? "Yes" : "No",
+      Active: u.is_active ? "Yes" : "No",
+      "Created At": u.created_at ? new Date(u.created_at).toLocaleDateString("en-AU") : "",
+    };
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(userRows), "Users & Access");
 
   const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
 

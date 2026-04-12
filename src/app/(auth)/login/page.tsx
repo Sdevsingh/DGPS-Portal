@@ -20,6 +20,10 @@ function mapAuthError(errorCode?: string | null): string {
       return "Invalid login details. Check your email/password. If this email exists in multiple companies, add the company slug.";
     case "SessionRequired":
       return "Your previous session expired. Please sign in again.";
+    case "OAuthAccountNotLinked":
+      return "This email is already registered with a password login. Please use email & password.";
+    case "Configuration":
+      return "Google sign-in is not configured yet. Please contact the administrator.";
     default:
       return "Sign in failed. Please try again.";
   }
@@ -296,7 +300,7 @@ function LoginPageInner() {
 
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-1.5">
-                Company Slug (optional)
+                Company Slug <span className="text-gray-600 font-normal">(optional)</span>
               </label>
               <input
                 type="text"
@@ -342,7 +346,7 @@ function LoginPageInner() {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || googleLoading}
               className="w-full py-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold rounded-xl text-sm transition-colors mt-2"
             >
               {loading ? "Signing in..." : "Sign in"}
@@ -391,7 +395,6 @@ function LoginPageInner() {
     </div>
   );
 }
-
 
 export default function LoginPage() {
   return (
