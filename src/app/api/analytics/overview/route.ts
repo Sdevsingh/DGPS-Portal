@@ -10,32 +10,57 @@ export async function GET(req: NextRequest) {
 
   const { role, tenantId, assignedTenantIds } = session.user;
 
-  let jobQ = supabaseAdmin.from("jobs").select("job_status, quote_status, payment_status, quote_total_with_gst, tenant_id, created_at, priority");
+  const accessible = role !== "super_admin"
+    ? Array.from(new Set([tenantId, ...(assignedTenantIds ?? [])]))
+    : null;
 
-  if (role !== "super_admin") {
-    const accessible = Array.from(new Set([tenantId, ...(assignedTenantIds ?? [])]));
-    jobQ = jobQ.in("tenant_id", accessible);
-  }
+  // Run all counts in parallel — only fetch what each query needs
+  const [
+    { data: statusRows },
+    { data: priorityRows },
+    { data: approvedRows },
+    { data: pendingRows },
+    { data: paidRows },
+  ] = await Promise.all([
+    (() => {
+      let q = supabaseAdmin.from("jobs").select("job_status");
+      if (accessible) q = q.in("tenant_id", accessible);
+      return q;
+    })(),
+    (() => {
+      let q = supabaseAdmin.from("jobs").select("priority");
+      if (accessible) q = q.in("tenant_id", accessible);
+      return q;
+    })(),
+    (() => {
+      let q = supabaseAdmin.from("jobs").select("quote_total_with_gst").eq("quote_status", "approved").not("quote_total_with_gst", "is", null);
+      if (accessible) q = q.in("tenant_id", accessible);
+      return q;
+    })(),
+    (() => {
+      let q = supabaseAdmin.from("jobs").select("quote_total_with_gst").eq("quote_status", "sent").not("quote_total_with_gst", "is", null);
+      if (accessible) q = q.in("tenant_id", accessible);
+      return q;
+    })(),
+    (() => {
+      let q = supabaseAdmin.from("jobs").select("id").eq("payment_status", "paid");
+      if (accessible) q = q.in("tenant_id", accessible);
+      return q;
+    })(),
+  ]);
 
-  const { data: jobs } = await jobQ;
-  const allJobs = jobs ?? [];
+  const statuses = statusRows ?? [];
+  const total = statuses.length;
+  const newJobs = statuses.filter((j) => j.job_status === "new").length;
+  const inProgress = statuses.filter((j) => j.job_status === "in_progress").length;
+  const completed = statuses.filter((j) => j.job_status === "completed").length;
+  const invoiced = statuses.filter((j) => j.job_status === "invoiced").length;
+  const paid = paidRows?.length ?? 0;
 
-  const total = allJobs.length;
-  const newJobs = allJobs.filter((j) => j.job_status === "new").length;
-  const inProgress = allJobs.filter((j) => j.job_status === "in_progress").length;
-  const completed = allJobs.filter((j) => j.job_status === "completed").length;
-  const invoiced = allJobs.filter((j) => j.job_status === "invoiced").length;
-  const paid = allJobs.filter((j) => j.payment_status === "paid").length;
+  const approvedRevenue = (approvedRows ?? []).reduce((sum, j) => sum + Number(j.quote_total_with_gst ?? 0), 0);
+  const pendingRevenue = (pendingRows ?? []).reduce((sum, j) => sum + Number(j.quote_total_with_gst ?? 0), 0);
 
-  const approvedRevenue = allJobs
-    .filter((j) => j.quote_status === "approved" && j.quote_total_with_gst)
-    .reduce((sum, j) => sum + Number(j.quote_total_with_gst ?? 0), 0);
-
-  const pendingRevenue = allJobs
-    .filter((j) => j.quote_status === "sent" && j.quote_total_with_gst)
-    .reduce((sum, j) => sum + Number(j.quote_total_with_gst ?? 0), 0);
-
-  // Status breakdown for chart
+  const priorities = priorityRows ?? [];
   const statusBreakdown = [
     { status: "new", count: newJobs, label: "New" },
     { status: "in_progress", count: inProgress, label: "In Progress" },
@@ -44,11 +69,10 @@ export async function GET(req: NextRequest) {
     { status: "paid", count: paid, label: "Paid" },
   ];
 
-  // Priority breakdown
   const priorityBreakdown = [
-    { priority: "high", count: allJobs.filter((j) => j.priority === "high").length },
-    { priority: "medium", count: allJobs.filter((j) => j.priority === "medium").length },
-    { priority: "low", count: allJobs.filter((j) => j.priority === "low").length },
+    { priority: "high", count: priorities.filter((j) => j.priority === "high").length },
+    { priority: "medium", count: priorities.filter((j) => j.priority === "medium").length },
+    { priority: "low", count: priorities.filter((j) => j.priority === "low").length },
   ];
 
   return NextResponse.json({

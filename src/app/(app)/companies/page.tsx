@@ -5,18 +5,6 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import CreateCompanyButton from "@/components/companies/CreateCompanyButton";
 
-type Tenant = {
-  id: string;
-  name: string;
-  slug: string;
-  email: string;
-  phone: string;
-  address: string;
-  createdAt: string;
-};
-
-type Job = { id: string; tenantId: string; jobStatus: string };
-type User = { id: string; tenantId: string };
 
 export default async function CompaniesPage() {
   const session = await getServerSession(authOptions);
@@ -25,12 +13,24 @@ export default async function CompaniesPage() {
 
   const [{ data: tenantsRaw }, { data: jobsRaw }, { data: usersRaw }] = await Promise.all([
     supabaseAdmin.from("tenants").select("id, name, slug, email, phone, address, created_at").order("name"),
-    supabaseAdmin.from("jobs").select("id, tenant_id, job_status"),
-    supabaseAdmin.from("users").select("id, tenant_id"),
+    supabaseAdmin.from("jobs").select("tenant_id, job_status"),
+    supabaseAdmin.from("users").select("tenant_id"),
   ]);
 
-  const allJobs = (jobsRaw ?? []).map((j) => ({ id: j.id, tenantId: j.tenant_id, jobStatus: j.job_status }));
-  const allUsers = (usersRaw ?? []).map((u) => ({ id: u.id, tenantId: u.tenant_id }));
+  // Pre-group into Maps — O(n) instead of O(n*m)
+  const jobCountMap = new Map<string, number>();
+  const activeJobMap = new Map<string, number>();
+  for (const j of jobsRaw ?? []) {
+    jobCountMap.set(j.tenant_id, (jobCountMap.get(j.tenant_id) ?? 0) + 1);
+    if (!["completed", "paid"].includes(j.job_status)) {
+      activeJobMap.set(j.tenant_id, (activeJobMap.get(j.tenant_id) ?? 0) + 1);
+    }
+  }
+  const userCountMap = new Map<string, number>();
+  for (const u of usersRaw ?? []) {
+    userCountMap.set(u.tenant_id, (userCountMap.get(u.tenant_id) ?? 0) + 1);
+  }
+
   const uniqueTenants = (tenantsRaw ?? []).map((t) => ({
     id: t.id,
     name: t.name,
@@ -44,11 +44,9 @@ export default async function CompaniesPage() {
   const tenantsWithStats = uniqueTenants
     .map((t) => ({
       ...t,
-      jobCount: allJobs.filter((j) => j.tenantId === t.id).length,
-      userCount: allUsers.filter((u) => u.tenantId === t.id).length,
-      activeJobs: allJobs.filter(
-        (j) => j.tenantId === t.id && !["completed", "paid"].includes(j.jobStatus)
-      ).length,
+      jobCount: jobCountMap.get(t.id) ?? 0,
+      userCount: userCountMap.get(t.id) ?? 0,
+      activeJobs: activeJobMap.get(t.id) ?? 0,
     }))
     .sort((a, b) => b.jobCount - a.jobCount);
 

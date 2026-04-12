@@ -67,6 +67,7 @@ export default function ChatPanel({ threadId, initialMessages }: Props) {
   const [input, setInput] = useState("");
   const [isPending, startTransition] = useTransition();
   const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const [messages, addOptimistic] = useOptimistic(
@@ -82,9 +83,17 @@ export default function ChatPanel({ threadId, initialMessages }: Props) {
     }
   );
 
-  // ─── Scroll to bottom ──────────────────────────────────────────────────────
-  const scrollToBottom = useCallback(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  // ─── Scroll to bottom (only if user is near the bottom) ───────────────────
+  const scrollToBottom = useCallback((force = false) => {
+    const container = scrollContainerRef.current;
+    if (!container && !force) return;
+    if (force || !container) {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+      return;
+    }
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    const isNearBottom = scrollHeight - scrollTop - clientHeight < 120;
+    if (isNearBottom) bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
 
   useEffect(() => {
@@ -221,7 +230,7 @@ export default function ChatPanel({ threadId, initialMessages }: Props) {
   return (
     <div className="flex flex-col h-full bg-gray-50">
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
         {grouped.map((group) => (
           <div key={group.date}>
             <div className="flex items-center gap-2 my-3">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 
 type QuoteItem = { id: string; description: string; quantity: string; unitPrice: string; total: string };
@@ -49,13 +49,15 @@ export default function QuotePanel({ jobId, quoteStatus, quoteAmount, quoteGst, 
     setItems((prev) => prev.filter((_, i) => i !== index));
   }
 
-  const formSubtotal = items.reduce((sum, item) => {
-    const qty = parseFloat(item.quantity) || 0;
-    const price = parseFloat(item.unitPrice) || 0;
-    return sum + qty * price;
-  }, 0);
-  const formGst = parseFloat((formSubtotal * 0.1).toFixed(2));
-  const formTotal = parseFloat((formSubtotal + formGst).toFixed(2));
+  const { formSubtotal, formGst, formTotal } = useMemo(() => {
+    const subtotal = items.reduce((sum, item) => {
+      const qty = parseFloat(item.quantity) || 0;
+      const price = parseFloat(item.unitPrice) || 0;
+      return sum + qty * price;
+    }, 0);
+    const gst = parseFloat((subtotal * 0.1).toFixed(2));
+    return { formSubtotal: subtotal, formGst: gst, formTotal: parseFloat((subtotal + gst).toFixed(2)) };
+  }, [items]);
 
   async function sendQuote() {
     if (items.some((i) => !i.description || !i.unitPrice)) return;
