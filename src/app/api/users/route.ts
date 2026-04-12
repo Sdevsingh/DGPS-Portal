@@ -114,7 +114,7 @@ export async function POST(req: NextRequest) {
 
     const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
     const setPasswordUrl = `${baseUrl}/reset-password?token=${token}`;
-    const loginUrl = `${baseUrl}/login`;
+    const loginUrl = baseUrl;
     const toEmail = process.env.RESEND_TEST_EMAIL ?? email.toLowerCase();
 
     await resend.emails.send({
@@ -129,26 +129,27 @@ export async function POST(req: NextRequest) {
               <h1 style="font-size:18px;font-weight:800;color:#1e3a5f;margin:0;">Domain Group</h1>
               <p style="font-size:12px;color:#6b7280;margin:2px 0 0;">Property Services Portal</p>
             </div>
-            <h2 style="font-size:20px;font-weight:700;color:#111827;margin-bottom:8px;">Welcome, ${name} 👋</h2>
+            <h2 style="font-size:20px;font-weight:700;color:#111827;margin-bottom:8px;">Welcome, ${name}</h2>
             <p style="color:#6b7280;font-size:14px;margin-bottom:24px;line-height:1.6;">
-              Your DGPS portal account has been created. You have two ways to access the portal:
+              Your DGPS portal account has been created. Click below to set your password and get started.
             </p>
 
-            <div style="background:#eff6ff;border-radius:12px;padding:16px 20px;margin-bottom:16px;border:1px solid #dbeafe;">
-              <p style="font-size:13px;font-weight:600;color:#1d4ed8;margin:0 0 4px;">Option 1 — Sign in with Google</p>
-              <p style="font-size:13px;color:#374151;margin:0 0 12px;">Use your company email <strong>${email}</strong> to sign in instantly with Google.</p>
-              <a href="${loginUrl}" style="display:inline-block;background:#2563eb;color:#fff;font-weight:600;font-size:13px;padding:10px 22px;border-radius:8px;text-decoration:none;">
-                Sign in with Google →
-              </a>
-            </div>
-
-            <div style="background:#f9fafb;border-radius:12px;padding:16px 20px;margin-bottom:24px;border:1px solid #e5e7eb;">
-              <p style="font-size:13px;font-weight:600;color:#374151;margin:0 0 4px;">Option 2 — Set a Password</p>
-              <p style="font-size:13px;color:#6b7280;margin:0 0 12px;">Prefer email &amp; password? Click below to set your password. This link expires in <strong>24 hours</strong>.</p>
-              <a href="${setPasswordUrl}" style="display:inline-block;background:#fff;color:#374151;font-weight:600;font-size:13px;padding:10px 22px;border-radius:8px;text-decoration:none;border:1px solid #d1d5db;">
+            <div style="background:#eff6ff;border-radius:12px;padding:20px;margin-bottom:24px;border:1px solid #dbeafe;">
+              <p style="font-size:13px;font-weight:600;color:#1d4ed8;margin:0 0 6px;">Set Your Password</p>
+              <p style="font-size:13px;color:#374151;margin:0 0 16px;line-height:1.6;">
+                Use the button below to create your password. This link expires in <strong>24 hours</strong>.
+              </p>
+              <a href="${setPasswordUrl}" style="display:inline-block;background:#2563eb;color:#fff;font-weight:600;font-size:13px;padding:12px 24px;border-radius:8px;text-decoration:none;">
                 Set My Password →
               </a>
             </div>
+
+            <p style="color:#6b7280;font-size:13px;margin-bottom:4px;">
+              Your login email: <strong style="color:#111827;">${email}</strong>
+            </p>
+            <p style="color:#6b7280;font-size:13px;margin-bottom:0;">
+              Portal: <a href="${loginUrl}" style="color:#2563eb;">${loginUrl}</a>
+            </p>
 
             <p style="color:#9ca3af;font-size:12px;margin-top:24px;padding-top:16px;border-top:1px solid #f3f4f6;">
               If you weren't expecting this email, please ignore it or contact us at <a href="mailto:DomainServices33@gmail.com" style="color:#2563eb;">DomainServices33@gmail.com</a>

@@ -1,6 +1,5 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import GoogleProvider from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import { supabaseAdmin } from "./supabase-server";
 import { getOpsManagerTenantIds } from "./db";
@@ -10,10 +9,6 @@ export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
   pages: { signIn: "/login" },
   providers: [
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-    }),
     CredentialsProvider({
       name: "credentials",
       credentials: {
@@ -78,127 +73,8 @@ export const authOptions: NextAuthOptions = {
   ],
 
   callbacks: {
-    async signIn({ user, account, profile }) {
-      if (account?.provider !== "google") return true;
-
-      const email = user.email?.toLowerCase();
-      if (!email) return false;
-
-      // ── 1. Check for an existing active user ─────────────────────────────
-      const { data: existingUsers } = await supabaseAdmin
-        .from("users")
-        .select("*")
-        .eq("email", email)
-        .eq("is_active", true)
-        .order("created_at", { ascending: false })
-        .limit(1);
-
-      const existing = existingUsers?.[0] ?? null;
-
-      if (existing) {
-        // ── Google sign-in is ONLY permitted for client accounts.
-        // Super admins, operations managers, and technicians must use
-        // email + password — their accounts are provisioned by a super admin.
-        if (existing.role !== "client") {
-          return "/login?error=google-staff-blocked";
-        }
-
-        // Existing client — refresh Google metadata
-        const updates: Record<string, string> = {};
-        if (!existing.google_id && account.providerAccountId) {
-          updates.google_id = account.providerAccountId;
-        }
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        if (!existing.avatar_url && (profile as any)?.picture) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          updates.avatar_url = (profile as any).picture;
-        }
-        if (Object.keys(updates).length > 0) {
-          await supabaseAdmin.from("users").update(updates).eq("id", existing.id);
-        }
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (user as any)._dbUser = existing;
-        return true;
-      }
-
-      // ── 2. New Google user — look up tenant via submitted jobs ────────────
-      //
-      // When a client submits a job via the public form, their email is stored
-      // as agent_email on the job record. We use that to discover which tenant
-      // they belong to and auto-provision their account.
-      const { data: jobMatches } = await supabaseAdmin
-        .from("jobs")
-        .select("tenant_id")
-        .eq("agent_email", email)
-        .order("created_at", { ascending: false });
-
-      // If this email appears in multiple tenants we can't safely auto-provision
-      const uniqueTenants = [...new Set((jobMatches ?? []).map((j) => j.tenant_id))];
-      if (uniqueTenants.length > 1) {
-        console.warn(`[Auth] Google sign-in blocked: ${email} matches ${uniqueTenants.length} tenants`);
-        return "/login?error=google-new-user";
-      }
-
-      const tenantId = uniqueTenants[0] ?? null;
-
-      if (!tenantId) {
-        // Completely unknown email — no jobs found, no existing account.
-        // Redirect to a helpful error so they can submit a request first.
-        return "/login?error=google-new-user";
-      }
-
-      // ── 3. Auto-create a client account under the discovered tenant ───────
-      const { data: newUser, error: createErr } = await supabaseAdmin
-        .from("users")
-        .insert({
-          email,
-          name: user.name ?? (profile as Record<string, string>)?.name ?? email.split("@")[0],
-          role: "client",
-          tenant_id: tenantId,
-          google_id: account.providerAccountId ?? null,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          avatar_url: (profile as any)?.picture ?? null,
-          is_active: true,
-        })
-        .select("*")
-        .single();
-
-      if (createErr || !newUser) {
-        console.error("[Auth] Google auto-create failed:", createErr?.message);
-        return "/login?error=CredentialsSignin";
-      }
-
-      console.log(`[Auth] Auto-provisioned Google client: ${email} → tenant ${tenantId}`);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (user as any)._dbUser = newUser;
-      return true;
-    },
-
-    async jwt({ token, user, account }) {
-      if (account?.provider === "google" && user) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const dbUser = (user as any)._dbUser;
-        if (dbUser) {
-          const { data: tenant } = await supabaseAdmin
-            .from("tenants")
-            .select("id, name, slug")
-            .eq("id", dbUser.tenant_id)
-            .single();
-
-          let assignedTenantIds: string[] = [];
-          if (dbUser.role === "operations_manager") {
-            assignedTenantIds = await getOpsManagerTenantIds(dbUser.id);
-          }
-
-          token.id = dbUser.id;
-          token.role = dbUser.role;
-          token.tenantId = dbUser.tenant_id;
-          token.tenantName = tenant?.name ?? "";
-          token.tenantSlug = tenant?.slug ?? "";
-          token.assignedTenantIds = assignedTenantIds;
-          token.clientCompanyName = dbUser.client_company_name ?? "";
-        }
-      } else if (user) {
+    async jwt({ token, user }) {
+      if (user) {
         const authUser = user as {
           id: string;
           role: string;
