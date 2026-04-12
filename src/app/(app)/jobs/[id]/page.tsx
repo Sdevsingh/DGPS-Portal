@@ -184,7 +184,12 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
 
           <div className="mb-5">
             <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1.5">Description</p>
-            <p className="text-sm text-gray-700 leading-relaxed">{job.description}</p>
+            <div className="text-sm text-gray-700 leading-relaxed space-y-0.5">
+              {job.description.split(/\n|(?= ?- )/).map((line, i) => {
+                const clean = line.replace(/^[\s\-–]+/, "").trim();
+                return clean ? <p key={i}>• {clean}</p> : null;
+              })}
+            </div>
           </div>
 
           <QuotePanel

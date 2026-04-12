@@ -204,19 +204,6 @@ export async function POST(req: NextRequest) {
       },
     ];
 
-    // For client submissions, also post the description as the opening message in chat
-    if (isClient) {
-      messages.push({
-        tenant_id: useTenantId,
-        thread_id: thread.id,
-        sender_id: userId,
-        sender_name: body.agentName,
-        sender_role: "client",
-        type: "text",
-        content: body.description,
-      });
-    }
-
     await supabaseAdmin.from("messages").insert(messages);
   }
 

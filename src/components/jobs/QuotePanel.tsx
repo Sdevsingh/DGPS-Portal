@@ -94,9 +94,15 @@ export default function QuotePanel({ jobId, quoteStatus, quoteAmount, quoteGst, 
       <div className="flex items-center justify-between mb-3">
         <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Quote</p>
         <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
-          { pending: "bg-gray-100 text-gray-600", sent: "bg-blue-100 text-blue-700", approved: "bg-green-100 text-green-700", rejected: "bg-red-100 text-red-700" }[quoteStatus] ?? "bg-gray-100 text-gray-600"
+          ({
+            pending: "bg-gray-100 text-gray-600",
+            sent: "bg-blue-100 text-blue-700",
+            approved: "bg-green-100 text-green-700",
+            rejected: "bg-red-100 text-red-700",
+            tech_revision_pending: "bg-orange-100 text-orange-700",
+          } as Record<string, string>)[quoteStatus] ?? "bg-gray-100 text-gray-600"
         }`}>
-          {quoteStatus}
+          {quoteStatus === "tech_revision_pending" ? "Revision Requested" : quoteStatus}
         </span>
       </div>
 
@@ -131,12 +137,12 @@ export default function QuotePanel({ jobId, quoteStatus, quoteAmount, quoteGst, 
       )}
 
       {/* Ops: send/update quote form */}
-      {isOpsOrAdmin && (quoteStatus === "pending" || quoteStatus === "rejected" || quoteStatus === "sent") && (
+      {isOpsOrAdmin && ["pending", "rejected", "sent", "approved", "tech_revision_pending"].includes(quoteStatus) && (
         <>
           {!showForm ? (
             <button onClick={openForm}
               className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl text-sm transition-colors">
-              {quoteStatus === "sent" ? "Revise Quote" : hasQuote ? "Update Quote" : "Create & Send Quote"}
+              {quoteStatus === "tech_revision_pending" ? "Update Revised Quote" : quoteStatus === "sent" || quoteStatus === "approved" ? "Revise Quote" : hasQuote ? "Update Quote" : "Create & Send Quote"}
             </button>
           ) : (
             <div className="space-y-3">

@@ -21,6 +21,15 @@ const STATUS_STYLE: Record<string, string> = {
   paid: "bg-emerald-100 text-emerald-700",
 };
 
+// Client-friendly quote status labels — never expose internal tech statuses
+const QUOTE_LABEL: Record<string, string> = {
+  pending:              "Pending",
+  sent:                 "Awaiting Approval",
+  approved:             "Approved",
+  rejected:             "Declined",
+  tech_revision_pending: "In Review",
+};
+
 function normalizeClientStatus(status: string): string {
   if (status === "ready") return "in_progress";
   return status;
@@ -96,7 +105,7 @@ export default async function ClientJobDetailPage({ params }: { params: Promise<
           </div>
           <div className="bg-white rounded-2xl border border-gray-200 p-3">
             <p className="text-[11px] text-gray-400 uppercase tracking-wide">Quote</p>
-            <p className="text-sm font-semibold text-gray-900 mt-1 capitalize">{job.quoteStatus || "pending"}</p>
+            <p className="text-sm font-semibold text-gray-900 mt-1">{QUOTE_LABEL[job.quoteStatus] ?? "Pending"}</p>
           </div>
           <div className="bg-white rounded-2xl border border-gray-200 p-3">
             <p className="text-[11px] text-gray-400 uppercase tracking-wide">Submitted</p>
@@ -170,7 +179,12 @@ export default async function ClientJobDetailPage({ params }: { params: Promise<
 
         <div className="bg-white rounded-2xl border border-gray-200 p-5">
           <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Problem Description</p>
-          <p className="text-sm text-gray-700 leading-relaxed">{job.description}</p>
+          <div className="text-sm text-gray-700 leading-relaxed space-y-0.5">
+            {job.description.split(/\n|(?= ?- )/).map((line: string, i: number) => {
+              const clean = line.replace(/^[\s\-–]+/, "").trim();
+              return clean ? <p key={i}>• {clean}</p> : null;
+            })}
+          </div>
           <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-4 text-xs text-gray-400">
             <span>Submitted {new Date(job.createdAt).toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" })}</span>
             {job.inspectionRequired === "true" && <span className="text-purple-500 font-medium">· Inspection required</span>}
@@ -184,6 +198,7 @@ export default async function ClientJobDetailPage({ params }: { params: Promise<
               {job.quoteStatus === "sent" && <span className="text-xs bg-blue-100 text-blue-700 px-2.5 py-1 rounded-full font-medium">Awaiting Approval</span>}
               {job.quoteStatus === "approved" && <span className="text-xs bg-green-100 text-green-700 px-2.5 py-1 rounded-full font-medium">Approved</span>}
               {job.quoteStatus === "rejected" && <span className="text-xs bg-red-100 text-red-700 px-2.5 py-1 rounded-full font-medium">Declined</span>}
+              {job.quoteStatus === "tech_revision_pending" && <span className="text-xs bg-amber-100 text-amber-700 px-2.5 py-1 rounded-full font-medium">In Review</span>}
             </div>
             {quoteItems.length > 0 && (
               <div className="space-y-2 mb-4">
