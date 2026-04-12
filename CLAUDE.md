@@ -2,7 +2,7 @@
 
 # DGPS_V2 — Domain Group Property Services Portal
 
-Multi-tenant SaaS platform for managing property maintenance jobs across client companies (DGPS, PropServ, ACE, Reliance, etc.). Built with Next.js 16 + Supabase + NextAuth.
+Multi-tenant SaaS platform for managing property maintenance jobs across client companies (DGPS, PropServ, ACE, Reliance, Caviar, Hocking Stuart, Nester, Marker). Built with Next.js 16 + Supabase + NextAuth.
 
 ---
 
@@ -290,16 +290,21 @@ RESEND_FROM=                      # Sender address
 
 ## DB Migrations Applied
 
-- `portal` added to `job_source` enum ✓ — client portal submissions now use `source: "portal"` instead of `"public_form"`
-- New job categories (Carpentry, Cleaning, Painting & Plastering, Garden & Landscaping) added to internal job form ✓
-
-> If `job_category` is also a strict enum in Supabase (not just text), run:
-> ```sql
-> ALTER TYPE job_category ADD VALUE IF NOT EXISTS 'Carpentry';
-> ALTER TYPE job_category ADD VALUE IF NOT EXISTS 'Cleaning';
-> ALTER TYPE job_category ADD VALUE IF NOT EXISTS 'Painting & Plastering';
-> ALTER TYPE job_category ADD VALUE IF NOT EXISTS 'Garden & Landscaping';
-> ```
+- `portal` added to `job_source` enum ✓
+- `job_category` enum extended ✓ — all values now valid:
+  `Plumbing, Electrical, Roofing, HVAC, General Maintenance, Other, Carpentry, Cleaning, Painting & Plastering, Garden & Landscaping, High Pressure Cleaning, Inspection`
+- DB indexes applied ✓ — run if not yet applied:
+  ```sql
+  CREATE INDEX IF NOT EXISTS idx_jobs_tenant_id ON jobs(tenant_id);
+  CREATE INDEX IF NOT EXISTS idx_jobs_agent_email ON jobs(agent_email);
+  CREATE INDEX IF NOT EXISTS idx_jobs_quote_status ON jobs(quote_status);
+  CREATE INDEX IF NOT EXISTS idx_jobs_job_status ON jobs(job_status);
+  CREATE INDEX IF NOT EXISTS idx_jobs_priority ON jobs(priority);
+  CREATE INDEX IF NOT EXISTS idx_chat_threads_job_id ON chat_threads(job_id);
+  CREATE INDEX IF NOT EXISTS idx_chat_threads_tenant_id ON chat_threads(tenant_id);
+  CREATE INDEX IF NOT EXISTS idx_messages_thread_id ON messages(thread_id);
+  CREATE INDEX IF NOT EXISTS idx_quote_items_job_id ON quote_items(job_id);
+  ```
 
 ---
 
@@ -355,3 +360,11 @@ router.refresh(); // re-render server components
 - **Hydration errors** — client components with `useSession` must show a loading state while `status === "loading"` to avoid SSR/client mismatch
 - **formatJob** maps all snake_case DB fields to camelCase. Always use these formatters, never access raw DB row fields in UI code
 - **company_name confusion** — this column stores END CUSTOMER name in all flows now. The client company name comes from the tenant record, not this field.
+- **Welcome email** — sent automatically when super_admin creates a new user via `/api/users`. Uses `password_resets` table for the set-password token (24h expiry). Email includes Google sign-in + set password options. Failure is non-fatal.
+- **NEXTAUTH_URL** — must be set to a reachable URL (not localhost) for password-reset links to work on mobile/external devices.
+- **Address fields** — property address is split into Street / Suburb / State / Postcode in both the internal job form and public request form. Concatenated as `fullAddress` before saving.
+- **Data Migration removed** — removed from sidebar navigation. The `/settings/migrate` route still exists but is not linked.
+- **Analytics APIs** — use targeted parallel DB queries. Do NOT revert to `select("*")` + JS filtering.
+- **Companies page** — uses Map-based O(n) aggregation for job/user counts per tenant. Do NOT revert to `.filter()` per tenant.
+- **ChatPanel auto-scroll** — only auto-scrolls if user is within 120px of the bottom. Uses `scrollContainerRef` on the message list div.
+- **NotificationBell polling** — 60s interval, skips fetch when `document.hidden` is true.
