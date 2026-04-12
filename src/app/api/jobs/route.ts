@@ -3,6 +3,10 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { formatJob, formatThread, nextJobNumber } from "@/lib/db";
+import { Resend } from "resend";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+const NOTIFY_EMAIL = "domainservices33@gmail.com";
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -205,6 +209,74 @@ export async function POST(req: NextRequest) {
     ];
 
     await supabaseAdmin.from("messages").insert(messages);
+  }
+
+  // Send email notification to ops team for every client portal submission
+  if (isClient) {
+    try {
+      const portalUrl = `${process.env.NEXTAUTH_URL ?? "http://localhost:3000"}/jobs/${job.id}`;
+      const emailResult = await resend.emails.send({
+        from: `DGPS Portal <${process.env.RESEND_FROM ?? "noreply@dgps.com.au"}>`,
+        to: NOTIFY_EMAIL,
+        subject: `New Client Request — ${jobNumber} | ${body.propertyAddress ?? ""}`,
+        html: `
+          <div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:32px 16px;background:#f8faff;">
+            <div style="background:#fff;border-radius:16px;border:1px solid #e5e7eb;overflow:hidden;">
+
+              <!-- Header -->
+              <div style="background:linear-gradient(135deg,#1e3a8a 0%,#2563eb 60%,#4f46e5 100%);padding:24px 28px;">
+                <p style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.6);letter-spacing:0.08em;text-transform:uppercase;margin:0 0 4px;">New Client Request</p>
+                <h1 style="font-size:22px;font-weight:800;color:#fff;margin:0;">${jobNumber}</h1>
+              </div>
+
+              <!-- Body -->
+              <div style="padding:24px 28px;">
+
+                <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+                  <tr>
+                    <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;font-size:12px;color:#9ca3af;width:38%;vertical-align:top;">Property</td>
+                    <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;font-size:14px;font-weight:600;color:#111827;">${body.propertyAddress ?? "—"}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;font-size:12px;color:#9ca3af;vertical-align:top;">Category</td>
+                    <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;font-size:14px;color:#374151;">${body.category ?? "General Maintenance"}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;font-size:12px;color:#9ca3af;vertical-align:top;">Priority</td>
+                    <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;font-size:14px;color:#374151;text-transform:capitalize;">${body.priority ?? "medium"}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;font-size:12px;color:#9ca3af;vertical-align:top;">Customer</td>
+                    <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;font-size:14px;color:#374151;">${body.companyName ?? "—"}${body.customerContact ? ` · ${body.customerContact}` : ""}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;font-size:12px;color:#9ca3af;vertical-align:top;">Submitted by</td>
+                    <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;font-size:14px;color:#374151;">${body.agentName ?? "—"}${body.agentContact ? ` · ${body.agentContact}` : ""}${body.agentEmail ? `<br/><span style="color:#6b7280;font-size:13px;">${body.agentEmail}</span>` : ""}</td>
+                  </tr>
+                  ${body.description ? `
+                  <tr>
+                    <td style="padding:10px 0;font-size:12px;color:#9ca3af;vertical-align:top;">Description</td>
+                    <td style="padding:10px 0;font-size:14px;color:#374151;line-height:1.6;">${body.description.replace(/\n/g, "<br/>")}</td>
+                  </tr>` : ""}
+                </table>
+
+                <a href="${portalUrl}" style="display:inline-block;padding:12px 24px;background:#2563eb;color:#fff;border-radius:10px;font-size:14px;font-weight:700;text-decoration:none;">
+                  View Job in Portal →
+                </a>
+
+              </div>
+
+              <div style="padding:16px 28px;border-top:1px solid #f3f4f6;background:#f9fafb;">
+                <p style="font-size:11px;color:#9ca3af;margin:0;">This notification was sent automatically by the DGPS Portal when a client submitted a new service request.</p>
+              </div>
+            </div>
+          </div>
+        `,
+      });
+      console.log("[DGPS] New-job notification email result:", JSON.stringify(emailResult));
+    } catch (emailErr) {
+      console.error("[DGPS] New-job notification email failed:", emailErr);
+    }
   }
 
   return NextResponse.json(formatJob(job), { status: 201 });

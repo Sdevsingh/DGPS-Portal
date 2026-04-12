@@ -14,6 +14,31 @@ const COUNTRY_CODES = [
   { code: "+91", label: "🇮🇳 +91", placeholder: "98xxx xxxxx" },
 ];
 
+// Validation helpers
+function validateEmail(email: string): string {
+  if (!email) return "";
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
+    ? ""
+    : "Please enter a valid email address";
+}
+
+function validatePhone(phone: string, countryCode: string): string {
+  if (!phone.trim()) return "";
+  const digits = phone.replace(/[\s\-().+]/g, "");
+  if (countryCode === "+61") {
+    // Australian: 10 digits starting with 0 (04xx) or 9 digits starting with 4
+    if (!/^(0\d{9}|\d{9})$/.test(digits)) {
+      return "Enter a valid Australian number";
+    }
+  } else {
+    // Generic: between 7 and 15 digits
+    if (digits.length < 7 || digits.length > 15) {
+      return "Enter a valid phone number (7–15 digits)";
+    }
+  }
+  return "";
+}
+
 function Toggle({ checked, onChange }: { checked: boolean; onChange: () => void }) {
   return (
     <button
@@ -57,6 +82,16 @@ export default function NewJobPage() {
 
   const [loading, setLoading] = useState(false);
   const [submitError, setSubmitError] = useState("");
+
+  // Field-level validation errors
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  function setErr(field: string, msg: string) {
+    setErrors((prev) => ({ ...prev, [field]: msg }));
+  }
+  function clearErr(field: string) {
+    setErrors((prev) => { const n = { ...prev }; delete n[field]; return n; });
+  }
 
   // ── Shared fields ────────────────────────────────────────────────────────────
   const [streetAddress, setStreetAddress] = useState("");
@@ -105,8 +140,51 @@ export default function NewJobPage() {
 
   async function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
-    setLoading(true);
     setSubmitError("");
+
+    // Run all validations before submitting
+    const newErrors: Record<string, string> = {};
+
+    if (isClient) {
+      const agentPhoneErr = validatePhone(agentPhone, agentCountryCode);
+      if (agentPhoneErr) newErrors.agentPhone = agentPhoneErr;
+
+      const agentEmailErr = validateEmail(agentEmail);
+      if (agentEmailErr) newErrors.agentEmail = agentEmailErr;
+
+      if (customerPhone.trim()) {
+        const custPhoneErr = validatePhone(customerPhone, customerCountryCode);
+        if (custPhoneErr) newErrors.customerPhone = custPhoneErr;
+      }
+      if (customerEmail.trim()) {
+        const custEmailErr = validateEmail(customerEmail);
+        if (custEmailErr) newErrors.customerEmail = custEmailErr;
+      }
+    } else {
+      if (opsForm.agentContact.trim()) {
+        const err = validatePhone(opsForm.agentContact, "+61");
+        if (err) newErrors.opsAgentContact = err;
+      }
+      if (opsForm.agentEmail.trim()) {
+        const err = validateEmail(opsForm.agentEmail);
+        if (err) newErrors.opsAgentEmail = err;
+      }
+      if (opsForm.customerContact.trim()) {
+        const err = validatePhone(opsForm.customerContact, "+61");
+        if (err) newErrors.opsCustomerContact = err;
+      }
+      if (opsForm.customerEmail.trim()) {
+        const err = validateEmail(opsForm.customerEmail);
+        if (err) newErrors.opsCustomerEmail = err;
+      }
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
+    setLoading(true);
 
     const fullAddress = `${streetAddress.trim()}, ${suburb.trim()} ${addrState} ${postcode.trim()}`;
 
@@ -222,7 +300,7 @@ export default function NewJobPage() {
                   <div className="flex gap-2">
                     <select
                       value={agentCountryCode}
-                      onChange={(e) => setAgentCountryCode(e.target.value)}
+                      onChange={(e) => { setAgentCountryCode(e.target.value); clearErr("agentPhone"); }}
                       className="px-2.5 py-3 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white shrink-0"
                     >
                       {COUNTRY_CODES.map((c) => (
@@ -233,11 +311,13 @@ export default function NewJobPage() {
                       required
                       type="tel"
                       value={agentPhone}
-                      onChange={(e) => setAgentPhone(e.target.value)}
+                      onChange={(e) => { setAgentPhone(e.target.value); clearErr("agentPhone"); }}
+                      onBlur={() => { const err = validatePhone(agentPhone, agentCountryCode); err ? setErr("agentPhone", err) : clearErr("agentPhone"); }}
                       placeholder={selectedAgentCountry.placeholder}
-                      className={inputCls}
+                      className={`${inputCls} ${errors.agentPhone ? "border-red-400 focus:ring-red-400" : ""}`}
                     />
                   </div>
+                  {errors.agentPhone && <p className="mt-1 text-xs text-red-500">{errors.agentPhone}</p>}
                 </div>
 
                 {/* Agent Personal Email */}
@@ -246,10 +326,12 @@ export default function NewJobPage() {
                   <input
                     type="email"
                     value={agentEmail}
-                    onChange={(e) => setAgentEmail(e.target.value)}
-                    className={inputCls}
+                    onChange={(e) => { setAgentEmail(e.target.value); clearErr("agentEmail"); }}
+                    onBlur={() => { const err = validateEmail(agentEmail); err ? setErr("agentEmail", err) : clearErr("agentEmail"); }}
+                    className={`${inputCls} ${errors.agentEmail ? "border-red-400 focus:ring-red-400" : ""}`}
                     placeholder="john.smith@dgps.com.au"
                   />
+                  {errors.agentEmail && <p className="mt-1 text-xs text-red-500">{errors.agentEmail}</p>}
                 </div>
               </div>
             </div>
@@ -280,7 +362,7 @@ export default function NewJobPage() {
                   <div className="flex gap-2">
                     <select
                       value={customerCountryCode}
-                      onChange={(e) => setCustomerCountryCode(e.target.value)}
+                      onChange={(e) => { setCustomerCountryCode(e.target.value); clearErr("customerPhone"); }}
                       className="px-2.5 py-3 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white shrink-0"
                     >
                       {COUNTRY_CODES.map((c) => (
@@ -290,11 +372,13 @@ export default function NewJobPage() {
                     <input
                       type="tel"
                       value={customerPhone}
-                      onChange={(e) => setCustomerPhone(e.target.value)}
+                      onChange={(e) => { setCustomerPhone(e.target.value); clearErr("customerPhone"); }}
+                      onBlur={() => { if (customerPhone.trim()) { const err = validatePhone(customerPhone, customerCountryCode); err ? setErr("customerPhone", err) : clearErr("customerPhone"); } }}
                       placeholder={selectedCustomerCountry.placeholder}
-                      className={inputCls}
+                      className={`${inputCls} ${errors.customerPhone ? "border-red-400 focus:ring-red-400" : ""}`}
                     />
                   </div>
+                  {errors.customerPhone && <p className="mt-1 text-xs text-red-500">{errors.customerPhone}</p>}
                 </div>
 
                 {/* Customer Email */}
@@ -303,10 +387,12 @@ export default function NewJobPage() {
                   <input
                     type="email"
                     value={customerEmail}
-                    onChange={(e) => setCustomerEmail(e.target.value)}
-                    className={inputCls}
+                    onChange={(e) => { setCustomerEmail(e.target.value); clearErr("customerEmail"); }}
+                    onBlur={() => { if (customerEmail.trim()) { const err = validateEmail(customerEmail); err ? setErr("customerEmail", err) : clearErr("customerEmail"); } }}
+                    className={`${inputCls} ${errors.customerEmail ? "border-red-400 focus:ring-red-400" : ""}`}
                     placeholder="e.g. sarah.johnson@email.com"
                   />
+                  {errors.customerEmail && <p className="mt-1 text-xs text-red-500">{errors.customerEmail}</p>}
                 </div>
               </div>
             </div>
@@ -330,13 +416,21 @@ export default function NewJobPage() {
                 </div>
                 <div>
                   <label className={labelCls}>Agent Contact</label>
-                  <input value={opsForm.agentContact} onChange={(e) => setOps("agentContact", e.target.value)}
-                    className={inputCls} placeholder="04xx xxx xxx" />
+                  <input value={opsForm.agentContact}
+                    onChange={(e) => { setOps("agentContact", e.target.value); clearErr("opsAgentContact"); }}
+                    onBlur={() => { if (opsForm.agentContact.trim()) { const err = validatePhone(opsForm.agentContact, "+61"); err ? setErr("opsAgentContact", err) : clearErr("opsAgentContact"); } }}
+                    className={`${inputCls} ${errors.opsAgentContact ? "border-red-400 focus:ring-red-400" : ""}`}
+                    placeholder="04xx xxx xxx" />
+                  {errors.opsAgentContact && <p className="mt-1 text-xs text-red-500">{errors.opsAgentContact}</p>}
                 </div>
                 <div className="col-span-2">
                   <label className={labelCls}>Agent Email</label>
-                  <input type="email" value={opsForm.agentEmail} onChange={(e) => setOps("agentEmail", e.target.value)}
-                    className={inputCls} placeholder="john.smith@company.com.au" />
+                  <input type="email" value={opsForm.agentEmail}
+                    onChange={(e) => { setOps("agentEmail", e.target.value); clearErr("opsAgentEmail"); }}
+                    onBlur={() => { if (opsForm.agentEmail.trim()) { const err = validateEmail(opsForm.agentEmail); err ? setErr("opsAgentEmail", err) : clearErr("opsAgentEmail"); } }}
+                    className={`${inputCls} ${errors.opsAgentEmail ? "border-red-400 focus:ring-red-400" : ""}`}
+                    placeholder="john.smith@company.com.au" />
+                  {errors.opsAgentEmail && <p className="mt-1 text-xs text-red-500">{errors.opsAgentEmail}</p>}
                 </div>
               </div>
             </div>
@@ -355,13 +449,21 @@ export default function NewJobPage() {
                 </div>
                 <div>
                   <label className={labelCls}>Customer Contact Number</label>
-                  <input value={opsForm.customerContact} onChange={(e) => setOps("customerContact", e.target.value)}
-                    className={inputCls} placeholder="04xx xxx xxx" />
+                  <input value={opsForm.customerContact}
+                    onChange={(e) => { setOps("customerContact", e.target.value); clearErr("opsCustomerContact"); }}
+                    onBlur={() => { if (opsForm.customerContact.trim()) { const err = validatePhone(opsForm.customerContact, "+61"); err ? setErr("opsCustomerContact", err) : clearErr("opsCustomerContact"); } }}
+                    className={`${inputCls} ${errors.opsCustomerContact ? "border-red-400 focus:ring-red-400" : ""}`}
+                    placeholder="04xx xxx xxx" />
+                  {errors.opsCustomerContact && <p className="mt-1 text-xs text-red-500">{errors.opsCustomerContact}</p>}
                 </div>
                 <div className="col-span-2">
                   <label className={labelCls}>Customer Email</label>
-                  <input type="email" value={opsForm.customerEmail} onChange={(e) => setOps("customerEmail", e.target.value)}
-                    className={inputCls} placeholder="e.g. sarah.johnson@email.com" />
+                  <input type="email" value={opsForm.customerEmail}
+                    onChange={(e) => { setOps("customerEmail", e.target.value); clearErr("opsCustomerEmail"); }}
+                    onBlur={() => { if (opsForm.customerEmail.trim()) { const err = validateEmail(opsForm.customerEmail); err ? setErr("opsCustomerEmail", err) : clearErr("opsCustomerEmail"); } }}
+                    className={`${inputCls} ${errors.opsCustomerEmail ? "border-red-400 focus:ring-red-400" : ""}`}
+                    placeholder="e.g. sarah.johnson@email.com" />
+                  {errors.opsCustomerEmail && <p className="mt-1 text-xs text-red-500">{errors.opsCustomerEmail}</p>}
                 </div>
               </div>
             </div>
