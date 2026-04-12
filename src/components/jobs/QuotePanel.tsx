@@ -132,6 +132,9 @@ export default function QuotePanel({ jobId, quoteStatus, quoteAmount, quoteGst, 
               <span>Total incl. GST</span>
               <span>${Number(quoteTotalWithGst).toFixed(2)}</span>
             </div>
+            <p className="text-[11px] text-gray-400 pt-2">
+              All prices stated are inclusive of Goods and Services Tax (GST) at 10%.
+            </p>
           </div>
         </div>
       )}
@@ -187,6 +190,9 @@ export default function QuotePanel({ jobId, quoteStatus, quoteAmount, quoteGst, 
                   <div className="flex justify-between font-bold text-gray-900 pt-1 border-t border-gray-200">
                     <span>Total incl. GST</span><span>${formTotal.toFixed(2)}</span>
                   </div>
+                  <p className="text-[11px] text-gray-400 pt-2">
+                    All prices stated are inclusive of Goods and Services Tax (GST) at 10%.
+                  </p>
                 </div>
               )}
 

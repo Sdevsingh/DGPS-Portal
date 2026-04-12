@@ -14,17 +14,26 @@ type Job = {
 export default function JobActions({ job, role }: { job: Job; role: string }) {
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
+  const [actionError, setActionError] = useState("");
 
   async function updateJob(data: Record<string, string>) {
     const key = Object.keys(data)[0];
     setLoading(key);
+    setActionError("");
     try {
-      await fetch(`/api/jobs/${job.id}`, {
+      const res = await fetch(`/api/jobs/${job.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setActionError(body.error ?? "Update failed — please try again.");
+        return;
+      }
       router.refresh();
+    } catch {
+      setActionError("Network error — please check your connection.");
     } finally {
       setLoading(null);
     }
@@ -35,6 +44,12 @@ export default function JobActions({ job, role }: { job: Job; role: string }) {
 
   return (
     <div className="space-y-2">
+      {actionError && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs">
+          {actionError}
+        </div>
+      )}
+
       {/* Client: quote actions */}
       {isClient && job.quoteStatus === "sent" && (
         <>

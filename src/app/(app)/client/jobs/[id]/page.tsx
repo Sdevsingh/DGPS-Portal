@@ -216,7 +216,8 @@ export default async function ClientJobDetailPage({ params }: { params: Promise<
             <div className="border-t border-gray-100 pt-3 space-y-1.5">
               <div className="flex justify-between text-sm text-gray-500"><span>Subtotal</span><span>${Number(job.quoteAmount).toFixed(2)}</span></div>
               <div className="flex justify-between text-sm text-gray-500"><span>GST (10%)</span><span>${Number(job.quoteGst || 0).toFixed(2)}</span></div>
-              <div className="flex justify-between font-bold text-gray-900 pt-1 border-t border-gray-200"><span>Total</span><span>${Number(job.quoteTotalWithGst).toFixed(2)}</span></div>
+              <div className="flex justify-between font-bold text-gray-900 pt-1 border-t border-gray-200"><span>Total incl. GST</span><span>${Number(job.quoteTotalWithGst).toFixed(2)}</span></div>
+              <p className="text-[11px] text-gray-400 pt-2">All prices stated are inclusive of Goods and Services Tax (GST) at 10%.</p>
             </div>
             {job.quoteStatus === "sent" && (
               <div className="mt-5 pt-4 border-t border-gray-100">
