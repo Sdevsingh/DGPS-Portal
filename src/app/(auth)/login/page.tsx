@@ -10,20 +10,10 @@ function mapAuthError(errorCode?: string | null): string {
   if (!errorCode) return "";
 
   switch (errorCode) {
-    case "google-staff-blocked":
-      return "Staff accounts must sign in with email and password — Google sign-in is for clients only.";
-    case "google-new-user":
-      return "No account found for your Google email. Submit a job request first, then sign in with Google.";
-    case "no-account":
-      return "No account found for this Google email. Please contact your admin.";
     case "CredentialsSignin":
       return "Invalid login details. Check your email/password. If this email exists in multiple companies, add the company slug.";
     case "SessionRequired":
       return "Your previous session expired. Please sign in again.";
-    case "OAuthAccountNotLinked":
-      return "This email is already registered with a password login. Please use email & password.";
-    case "Configuration":
-      return "Google sign-in is not configured yet. Please contact the administrator.";
     default:
       return "Sign in failed. Please try again.";
   }
@@ -310,7 +300,7 @@ function LoginPageInner() {
 
             <button
               type="submit"
-              disabled={loading || googleLoading}
+              disabled={loading}
               className="w-full py-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold rounded-xl text-sm transition-colors mt-2"
             >
               {loading ? "Signing in..." : "Sign in"}
