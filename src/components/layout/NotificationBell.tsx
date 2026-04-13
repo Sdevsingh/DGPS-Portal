@@ -97,17 +97,6 @@ export default function NotificationBell() {
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
-  // When panel opens, mark all current notifications as seen
-  useEffect(() => {
-    if (!open || notifications.length === 0) return;
-    setSeenIds((prev) => {
-      const next = new Set(prev);
-      for (const n of notifications) next.add(n.id);
-      saveSeenIds(next);
-      return next;
-    });
-  }, [open, notifications]);
-
   const markSeen = useCallback((id: string) => {
     setSeenIds((prev) => {
       const next = new Set(prev);
