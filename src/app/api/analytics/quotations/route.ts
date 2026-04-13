@@ -12,7 +12,8 @@ export async function GET(req: NextRequest) {
 
   let jobQ = supabaseAdmin
     .from("jobs")
-    .select("id, job_number, property_address, quote_status, quote_total_with_gst, tenant_id, company_name, created_at");
+    .select("id, job_number, property_address, quote_status, quote_total_with_gst, tenant_id, company_name, created_at")
+    .or("is_archived.eq.false,is_archived.is.null");
 
   const statusFilter = req.nextUrl.searchParams.get("status");
   if (statusFilter) jobQ = jobQ.eq("quote_status", statusFilter);

@@ -5,6 +5,7 @@ import { formatJob, formatThread } from "@/lib/db";
 import Link from "next/link";
 import { Suspense } from "react";
 import JobFilters from "@/components/jobs/JobFilters";
+import SwipeToDelete from "@/components/jobs/SwipeToDelete";
 
 const STATUS_STYLE: Record<string, string> = {
   new: "bg-blue-100 text-blue-700",
@@ -51,7 +52,7 @@ export default async function JobsPage({
 
   // Build job query
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let jobQ: any = supabaseAdmin.from("jobs").select("*");
+  let jobQ: any = supabaseAdmin.from("jobs").select("*").or("is_archived.eq.false,is_archived.is.null");
 
   if (role === "super_admin") {
     if (params.company) jobQ = jobQ.eq("tenant_id", params.company);
@@ -161,7 +162,8 @@ export default async function JobsPage({
           const thread = threadMap.get(job.id);
           const needsReply = thread?.pendingOn === "team";
           return (
-            <Link key={job.id} href={`/jobs/${job.id}`} className="flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition-colors group first:rounded-t-2xl last:rounded-b-2xl">
+            <SwipeToDelete key={job.id} jobId={job.id}>
+            <Link href={`/jobs/${job.id}`} className="flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition-colors group first:rounded-t-2xl last:rounded-b-2xl">
               <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${PRIORITY_DOT[job.priority] ?? "bg-gray-300"}`} />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap mb-0.5">
@@ -194,6 +196,7 @@ export default async function JobsPage({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </Link>
+            </SwipeToDelete>
           );
         })}
         {jobs.length === 0 && (

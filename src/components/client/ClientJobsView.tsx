@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import SwipeToDelete from "@/components/jobs/SwipeToDelete";
 
 type Job = Record<string, string>;
 type FilterView = "all" | "active" | "awaiting" | "completed";
@@ -221,8 +222,8 @@ export default function ClientJobsView({
               const pri        = PRIORITY_CFG[job.priority] ?? { label: job.priority ?? "—", bg: "#f9fafb", color: "#6b7280" };
 
               return (
+                <SwipeToDelete key={job.id} jobId={job.id}>
                 <Link
-                  key={job.id}
                   href={`/client/jobs/${job.id}`}
                   style={{ display: "block", textDecoration: "none" }}
                 >
@@ -323,6 +324,7 @@ export default function ClientJobsView({
                     </div>
                   </div>
                 </Link>
+                </SwipeToDelete>
               );
             })}
           </div>

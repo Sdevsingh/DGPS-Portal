@@ -15,7 +15,7 @@ export default async function ClientPortalPage() {
 
   const [{ data: tenantData }, { data: jobsRaw }] = await Promise.all([
     supabaseAdmin.from("tenants").select("id, name, slug").eq("id", tenantId).single(),
-    supabaseAdmin.from("jobs").select("*").eq("tenant_id", tenantId).order("created_at", { ascending: false }),
+    supabaseAdmin.from("jobs").select("*").eq("tenant_id", tenantId).or("is_archived.eq.false,is_archived.is.null").order("created_at", { ascending: false }),
   ]);
 
   const jobs = (jobsRaw ?? [])

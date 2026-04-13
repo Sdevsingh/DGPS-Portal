@@ -28,12 +28,12 @@ export async function GET(req: NextRequest) {
     { data: thisMonthApproved },
   ] = await Promise.all([
     (() => {
-      let q = supabaseAdmin.from("jobs").select("quote_total_with_gst").eq("quote_status", "approved").not("quote_total_with_gst", "is", null);
+      let q = supabaseAdmin.from("jobs").select("quote_total_with_gst").eq("quote_status", "approved").not("quote_total_with_gst", "is", null).or("is_archived.eq.false,is_archived.is.null");
       if (accessible) q = q.in("tenant_id", accessible);
       return q;
     })(),
     (() => {
-      let q = supabaseAdmin.from("jobs").select("id").in("quote_status", ["approved", "rejected", "sent"]);
+      let q = supabaseAdmin.from("jobs").select("id").in("quote_status", ["approved", "rejected", "sent"]).or("is_archived.eq.false,is_archived.is.null");
       if (accessible) q = q.in("tenant_id", accessible);
       return q;
     })(),
@@ -43,22 +43,22 @@ export async function GET(req: NextRequest) {
       return q;
     })(),
     (() => {
-      let q = supabaseAdmin.from("jobs").select("id").eq("priority", "high").not("job_status", "in", '("completed","paid")');
+      let q = supabaseAdmin.from("jobs").select("id").eq("priority", "high").not("job_status", "in", '("completed","paid")').or("is_archived.eq.false,is_archived.is.null");
       if (accessible) q = q.in("tenant_id", accessible);
       return q;
     })(),
     (() => {
-      let q = supabaseAdmin.from("jobs").select("category");
+      let q = supabaseAdmin.from("jobs").select("category").or("is_archived.eq.false,is_archived.is.null");
       if (accessible) q = q.in("tenant_id", accessible);
       return q;
     })(),
     (() => {
-      let q = supabaseAdmin.from("jobs").select("id").gte("created_at", thisMonthStart);
+      let q = supabaseAdmin.from("jobs").select("id").gte("created_at", thisMonthStart).or("is_archived.eq.false,is_archived.is.null");
       if (accessible) q = q.in("tenant_id", accessible);
       return q;
     })(),
     (() => {
-      let q = supabaseAdmin.from("jobs").select("id").eq("quote_status", "approved").gte("created_at", thisMonthStart);
+      let q = supabaseAdmin.from("jobs").select("id").eq("quote_status", "approved").gte("created_at", thisMonthStart).or("is_archived.eq.false,is_archived.is.null");
       if (accessible) q = q.in("tenant_id", accessible);
       return q;
     })(),

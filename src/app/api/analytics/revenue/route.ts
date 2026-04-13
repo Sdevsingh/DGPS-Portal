@@ -12,7 +12,8 @@ export async function GET(req: NextRequest) {
 
   let jobQ = supabaseAdmin
     .from("jobs")
-    .select("quote_total_with_gst, quote_status, payment_status, created_at, tenant_id, company_name");
+    .select("quote_total_with_gst, quote_status, payment_status, created_at, tenant_id, company_name")
+    .or("is_archived.eq.false,is_archived.is.null");
 
   if (role !== "super_admin") {
     const accessible = Array.from(new Set([tenantId, ...(assignedTenantIds ?? [])]));

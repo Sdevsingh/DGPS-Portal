@@ -33,7 +33,7 @@ export default async function TechnicianPage({ searchParams }: { searchParams: P
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let q: any = supabaseAdmin.from("jobs").select("*");
+  let q: any = supabaseAdmin.from("jobs").select("*").or("is_archived.eq.false,is_archived.is.null");
 
   if (role === "technician") {
     q = q.eq("tenant_id", tenantId).eq("assigned_to_id", userId);

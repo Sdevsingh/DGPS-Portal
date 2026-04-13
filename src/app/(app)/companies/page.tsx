@@ -13,7 +13,7 @@ export default async function CompaniesPage() {
 
   const [{ data: tenantsRaw }, { data: jobsRaw }, { data: usersRaw }] = await Promise.all([
     supabaseAdmin.from("tenants").select("id, name, slug, email, phone, address, created_at").order("name"),
-    supabaseAdmin.from("jobs").select("tenant_id, job_status"),
+    supabaseAdmin.from("jobs").select("tenant_id, job_status").or("is_archived.eq.false,is_archived.is.null"),
     supabaseAdmin.from("users").select("tenant_id"),
   ]);
 

@@ -23,9 +23,9 @@ export async function GET(req: NextRequest) {
   const companyFilter = searchParams.get("tenantId") || searchParams.get("company");
   const pendingOnFilter = searchParams.get("pendingOn");
 
-  // Build base query
+  // Build base query — exclude archived jobs
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let q: any = supabaseAdmin.from("jobs").select("*");
+  let q: any = supabaseAdmin.from("jobs").select("*").or("is_archived.eq.false,is_archived.is.null");
 
   if (role === "super_admin") {
     if (companyFilter) q = q.eq("tenant_id", companyFilter);

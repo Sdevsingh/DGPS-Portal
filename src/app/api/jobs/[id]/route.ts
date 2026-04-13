@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { formatJob, formatThread, formatMessage, formatQuoteItem, toDbJobPatch } from "@/lib/db";
 
-export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -63,7 +63,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { role, tenantId, id: userId, assignedTenantIds } = session.user;
+  const { role, tenantId, assignedTenantIds } = session.user;
   const { id } = await params;
 
   const { data: job } = await supabaseAdmin.from("jobs").select("*").eq("id", id).single();
@@ -167,4 +167,36 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   return NextResponse.json(formatJob(updated));
+}
+
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const session = await getServerSession(authOptions);
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { role, tenantId, id: userId, email, assignedTenantIds } = session.user;
+  const { id } = await params;
+
+  const { data: job } = await supabaseAdmin.from("jobs").select("*").eq("id", id).single();
+  if (!job) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  // Access control — client can only delete their own jobs; ops/admin scoped to their tenants
+  if (role === "client") {
+    const isOwner =
+      job.tenant_id === tenantId &&
+      (job.agent_email?.toLowerCase() === email?.toLowerCase() || job.created_by_user_id === userId);
+    if (!isOwner) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  } else if (role !== "super_admin") {
+    const accessible = new Set([tenantId, ...(assignedTenantIds ?? [])]);
+    if (!accessible.has(job.tenant_id)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  // Soft-archive: data stays in DB, hidden from all list views
+  const { error } = await supabaseAdmin
+    .from("jobs")
+    .update({ is_archived: true, updated_at: new Date().toISOString() })
+    .eq("id", id);
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  return NextResponse.json({ success: true });
 }

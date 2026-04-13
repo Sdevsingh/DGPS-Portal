@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
 
   if (role === "super_admin" || role === "operations_manager") {
     // Get jobs for accessible tenants
-    let jobQ = supabaseAdmin.from("jobs").select("id, job_number, property_address, tenant_id, quote_status, created_at, updated_at");
+    let jobQ = supabaseAdmin.from("jobs").select("id, job_number, property_address, tenant_id, quote_status, created_at, updated_at").or("is_archived.eq.false,is_archived.is.null");
     let threadQ = supabaseAdmin.from("chat_threads").select("id, job_id, pending_on, last_message_at, response_due_time, tenant_id");
 
     if (role === "operations_manager") {
@@ -84,7 +84,8 @@ export async function GET(req: NextRequest) {
       .select("id, job_number, property_address, updated_at, created_at")
       .eq("tenant_id", tenantId)
       .eq("assigned_to_id", userId)
-      .neq("job_status", "completed");
+      .neq("job_status", "completed")
+      .or("is_archived.eq.false,is_archived.is.null");
 
     for (const j of myJobs ?? []) {
       notifications.push({
@@ -103,7 +104,8 @@ export async function GET(req: NextRequest) {
       .from("jobs")
       .select("id, job_number, property_address, quote_status, quote_total_with_gst, updated_at, created_at")
       .eq("tenant_id", tenantId)
-      .eq("agent_email", email?.toLowerCase() ?? "");
+      .eq("agent_email", email?.toLowerCase() ?? "")
+      .or("is_archived.eq.false,is_archived.is.null");
 
     if (myJobs && myJobs.length > 0) {
       const jobIds = myJobs.map((j) => j.id);

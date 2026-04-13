@@ -23,27 +23,27 @@ export async function GET(req: NextRequest) {
     { data: paidRows },
   ] = await Promise.all([
     (() => {
-      let q = supabaseAdmin.from("jobs").select("job_status");
+      let q = supabaseAdmin.from("jobs").select("job_status").or("is_archived.eq.false,is_archived.is.null");
       if (accessible) q = q.in("tenant_id", accessible);
       return q;
     })(),
     (() => {
-      let q = supabaseAdmin.from("jobs").select("priority");
+      let q = supabaseAdmin.from("jobs").select("priority").or("is_archived.eq.false,is_archived.is.null");
       if (accessible) q = q.in("tenant_id", accessible);
       return q;
     })(),
     (() => {
-      let q = supabaseAdmin.from("jobs").select("quote_total_with_gst").eq("quote_status", "approved").not("quote_total_with_gst", "is", null);
+      let q = supabaseAdmin.from("jobs").select("quote_total_with_gst").eq("quote_status", "approved").not("quote_total_with_gst", "is", null).or("is_archived.eq.false,is_archived.is.null");
       if (accessible) q = q.in("tenant_id", accessible);
       return q;
     })(),
     (() => {
-      let q = supabaseAdmin.from("jobs").select("quote_total_with_gst").eq("quote_status", "sent").not("quote_total_with_gst", "is", null);
+      let q = supabaseAdmin.from("jobs").select("quote_total_with_gst").eq("quote_status", "sent").not("quote_total_with_gst", "is", null).or("is_archived.eq.false,is_archived.is.null");
       if (accessible) q = q.in("tenant_id", accessible);
       return q;
     })(),
     (() => {
-      let q = supabaseAdmin.from("jobs").select("id").eq("payment_status", "paid");
+      let q = supabaseAdmin.from("jobs").select("id").eq("payment_status", "paid").or("is_archived.eq.false,is_archived.is.null");
       if (accessible) q = q.in("tenant_id", accessible);
       return q;
     })(),

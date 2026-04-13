@@ -193,6 +193,7 @@ const JOB_FIELD_MAP: Record<string, string> = {
   createdByUserId: "created_by_user_id",
   createdByName: "created_by_name",
   createdByRole: "created_by_role",
+  isArchived: "is_archived",
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

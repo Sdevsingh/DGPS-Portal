@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
   since.setDate(since.getDate() - 10);
 
   const [{ data: jobs }, { data: threads }, { data: users }] = await Promise.all([
-    supabaseAdmin.from("jobs").select("*").gte("created_at", since.toISOString()).order("created_at", { ascending: false }),
+    supabaseAdmin.from("jobs").select("*").gte("created_at", since.toISOString()).or("is_archived.eq.false,is_archived.is.null").order("created_at", { ascending: false }),
     supabaseAdmin.from("chat_threads").select("*").gte("created_at", since.toISOString()),
     supabaseAdmin.from("users").select("*, tenants(name, slug)").eq("is_active", true).order("created_at", { ascending: false }),
   ]);

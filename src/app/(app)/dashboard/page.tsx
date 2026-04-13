@@ -143,7 +143,8 @@ export default async function DashboardPage() {
   // Fetch jobs — technician sees only assigned jobs
   let jobQ = supabaseAdmin
     .from("jobs")
-    .select("id, job_number, job_status, quote_status, payment_status, priority, property_address, company_name, tenant_id, created_at, quote_amount, quote_total_with_gst");
+    .select("id, job_number, job_status, quote_status, payment_status, priority, property_address, company_name, tenant_id, created_at, quote_amount, quote_total_with_gst")
+    .or("is_archived.eq.false,is_archived.is.null");
   let threadQ = supabaseAdmin
     .from("chat_threads")
     .select("id, job_id, pending_on, response_due_time, tenant_id");
