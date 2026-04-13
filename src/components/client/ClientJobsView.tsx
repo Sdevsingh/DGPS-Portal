@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import SwipeToDelete from "@/components/jobs/SwipeToDelete";
+import DeleteJobButton from "@/components/jobs/DeleteJobButton";
 
 type Job = Record<string, string>;
 type FilterView = "all" | "active" | "awaiting" | "completed";
@@ -222,7 +222,7 @@ export default function ClientJobsView({
               const pri        = PRIORITY_CFG[job.priority] ?? { label: job.priority ?? "—", bg: "#f9fafb", color: "#6b7280" };
 
               return (
-                <SwipeToDelete key={job.id} jobId={job.id}>
+                <div key={job.id} data-job-row={job.id} style={{ position: "relative" }}>
                 <Link
                   href={`/client/jobs/${job.id}`}
                   style={{ display: "block", textDecoration: "none" }}
@@ -300,7 +300,7 @@ export default function ClientJobsView({
                       </div>
                     )}
 
-                    {/* Bottom row: priority + date + view arrow */}
+                    {/* Bottom row: priority + date + view + delete */}
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "10px" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                         <span style={{
@@ -315,16 +315,21 @@ export default function ClientJobsView({
                           {new Date(job.createdAt).toLocaleDateString("en-AU", { day: "numeric", month: "short" })}
                         </span>
                       </div>
-                      <span style={{ display: "flex", alignItems: "center", gap: "2px", fontSize: "12px", fontWeight: 600, color: "#3b82f6" }}>
-                        View
-                        <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
-                        </svg>
-                      </span>
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        <span style={{ display: "flex", alignItems: "center", gap: "2px", fontSize: "12px", fontWeight: 600, color: "#3b82f6" }}>
+                          View
+                          <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </span>
+                        <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                          <DeleteJobButton jobId={job.id} jobNumber={job.jobNumber} />
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </Link>
-                </SwipeToDelete>
+                </div>
               );
             })}
           </div>

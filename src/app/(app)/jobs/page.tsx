@@ -5,7 +5,7 @@ import { formatJob, formatThread } from "@/lib/db";
 import Link from "next/link";
 import { Suspense } from "react";
 import JobFilters from "@/components/jobs/JobFilters";
-import SwipeToDelete from "@/components/jobs/SwipeToDelete";
+import DeleteJobButton from "@/components/jobs/DeleteJobButton";
 
 const STATUS_STYLE: Record<string, string> = {
   new: "bg-blue-100 text-blue-700",
@@ -162,41 +162,44 @@ export default async function JobsPage({
           const thread = threadMap.get(job.id);
           const needsReply = thread?.pendingOn === "team";
           return (
-            <SwipeToDelete key={job.id} jobId={job.id}>
-            <Link href={`/jobs/${job.id}`} className="flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition-colors group first:rounded-t-2xl last:rounded-b-2xl">
-              <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${PRIORITY_DOT[job.priority] ?? "bg-gray-300"}`} />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                  <span className="font-semibold text-gray-900 text-sm">{job.jobNumber}</span>
-                  {role === "super_admin" && job.tenantId && (
-                    <span className="text-xs bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full font-medium">
-                      {tenantMap.get(job.tenantId) ?? job.tenantId}
-                    </span>
-                  )}
-                  {needsReply && (
-                    <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-medium animate-pulse">Reply needed</span>
-                  )}
-                  {job.inspectionRequired === "true" && job.jobStatus !== "completed" && (
-                    <span className="text-xs bg-purple-100 text-purple-600 px-2 py-0.5 rounded-full">Inspection</span>
-                  )}
+            <div key={job.id} data-job-row={job.id} className="flex items-center divide-x divide-gray-100 hover:bg-gray-50 transition-colors group first:rounded-t-2xl last:rounded-b-2xl">
+              <Link href={`/jobs/${job.id}`} className="flex items-center gap-4 px-5 py-4 flex-1 min-w-0">
+                <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${PRIORITY_DOT[job.priority] ?? "bg-gray-300"}`} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                    <span className="font-semibold text-gray-900 text-sm">{job.jobNumber}</span>
+                    {role === "super_admin" && job.tenantId && (
+                      <span className="text-xs bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full font-medium">
+                        {tenantMap.get(job.tenantId) ?? job.tenantId}
+                      </span>
+                    )}
+                    {needsReply && (
+                      <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-medium animate-pulse">Reply needed</span>
+                    )}
+                    {job.inspectionRequired === "true" && job.jobStatus !== "completed" && (
+                      <span className="text-xs bg-purple-100 text-purple-600 px-2 py-0.5 rounded-full">Inspection</span>
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-700 font-medium truncate">{job.propertyAddress}</p>
+                  <p className="text-xs text-gray-400 truncate mt-0.5 hidden sm:block">{job.description}</p>
                 </div>
-                <p className="text-sm text-gray-700 font-medium truncate">{job.propertyAddress}</p>
-                <p className="text-xs text-gray-400 truncate mt-0.5 hidden sm:block">{job.description}</p>
+                <div className="flex flex-col items-end gap-1.5 shrink-0">
+                  <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${STATUS_STYLE[job.jobStatus] ?? "bg-gray-100 text-gray-600"}`}>
+                    {job.jobStatus.replace(/_/g, " ")}
+                  </span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${QUOTE_STYLE[job.quoteStatus] ?? "bg-gray-100 text-gray-500"}`}>
+                    {job.quoteStatus?.replace(/_/g, " ")}
+                  </span>
+                  {job.assignedToName && <span className="text-xs text-gray-400 hidden sm:block">{job.assignedToName}</span>}
+                </div>
+                <svg className="w-4 h-4 text-gray-300 group-hover:text-gray-500 shrink-0 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
+              <div className="px-3 shrink-0">
+                <DeleteJobButton jobId={job.id} jobNumber={job.jobNumber} />
               </div>
-              <div className="flex flex-col items-end gap-1.5 shrink-0">
-                <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${STATUS_STYLE[job.jobStatus] ?? "bg-gray-100 text-gray-600"}`}>
-                  {job.jobStatus.replace(/_/g, " ")}
-                </span>
-                <span className={`text-xs px-2 py-0.5 rounded-full ${QUOTE_STYLE[job.quoteStatus] ?? "bg-gray-100 text-gray-500"}`}>
-                  {job.quoteStatus?.replace(/_/g, " ")}
-                </span>
-                {job.assignedToName && <span className="text-xs text-gray-400 hidden sm:block">{job.assignedToName}</span>}
-              </div>
-              <svg className="w-4 h-4 text-gray-300 group-hover:text-gray-500 shrink-0 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </Link>
-            </SwipeToDelete>
+            </div>
           );
         })}
         {jobs.length === 0 && (
