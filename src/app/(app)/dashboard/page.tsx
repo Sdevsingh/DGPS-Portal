@@ -5,6 +5,7 @@ import { formatJob, formatThread } from "@/lib/db";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import DashboardCharts from "@/components/dashboard/DashboardCharts";
+import DashboardGreeting from "@/components/dashboard/DashboardGreeting";
 import ActivityScroll, { type ActivityItem } from "@/components/dashboard/ActivityScroll";
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
@@ -281,9 +282,6 @@ export default async function DashboardPage() {
     paid:        { label: "Paid",        bg: "bg-emerald-50", text: "text-emerald-700", bar: "bg-emerald-500" },
   };
 
-  const hour = now.getHours();
-  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
-  const dateStr = now.toLocaleDateString("en-AU", { weekday: "long", day: "numeric", month: "long" });
 
   // ═══════════════════════════════════════════════════════════════════════════
   // SUPER ADMIN — Intelligence dashboard layout
@@ -296,8 +294,7 @@ export default async function DashboardPage() {
         <div className="bg-white border-b border-gray-100">
           <div className="max-w-7xl mx-auto px-6 md:px-8 py-6 flex items-center justify-between gap-4">
             <div>
-              <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-0.5">{dateStr}</p>
-              <h1 className="text-2xl font-bold text-gray-900">{greeting}, {session.user.name?.split(" ")[0]}</h1>
+              <DashboardGreeting name={session.user.name?.split(" ")[0] ?? "there"} />
               <p className="text-sm text-gray-500 mt-0.5">Global overview — all companies</p>
             </div>
             <div className="flex items-center gap-2 text-xs text-blue-600 bg-blue-50 border border-blue-100 rounded-full px-3 py-1.5 font-medium">
@@ -441,8 +438,7 @@ export default async function DashboardPage() {
       <div className="bg-white border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-6 md:px-8 py-6 flex items-center justify-between gap-4">
           <div>
-            <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-0.5">{dateStr}</p>
-            <h1 className="text-2xl font-bold text-gray-900">{greeting}, {session.user.name?.split(" ")[0]}</h1>
+            <DashboardGreeting name={session.user.name?.split(" ")[0] ?? "there"} />
             <p className="text-sm text-gray-500 mt-0.5">{session.user.tenantName}</p>
           </div>
           {role === "operations_manager" && (
