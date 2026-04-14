@@ -30,12 +30,15 @@ export default function DeleteJobButton({ jobId, jobNumber }: Props) {
         row.style.overflow = "hidden";
         row.style.height = `${h}px`;
         row.style.opacity = "1";
-        row.style.transition = "height 0.25s ease, opacity 0.2s ease, margin 0.25s ease";
-        // Force reflow
+        row.style.transition = "height 0.25s ease, opacity 0.2s ease";
+        // Force reflow so transition fires from pinned height
         void row.offsetHeight;
         row.style.height = "0px";
         row.style.opacity = "0";
-        row.style.marginBottom = "0px";
+        // Remove from layout after animation completes
+        row.addEventListener("transitionend", () => {
+          row.style.display = "none";
+        }, { once: true });
       }
     } catch {
       setDeleting(false);

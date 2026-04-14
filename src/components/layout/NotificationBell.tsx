@@ -69,6 +69,11 @@ export default function NotificationBell() {
   async function fetchNotifications() {
     try {
       const res = await fetch("/api/notifications");
+      if (res.status === 401) {
+        // Session expired — redirect to login
+        window.location.href = "/login";
+        return;
+      }
       if (res.ok) {
         const data = await res.json();
         setNotifications(data.notifications ?? []);
