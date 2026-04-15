@@ -1,50 +1,52 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { getRows } from "@/lib/sheets";
+import { supabaseAdmin } from "@/lib/supabase-server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import CreateCompanyButton from "@/components/companies/CreateCompanyButton";
 
-type Tenant = {
-  id: string;
-  name: string;
-  slug: string;
-  email: string;
-  phone: string;
-  address: string;
-  createdAt: string;
-};
-
-type Job = { id: string; tenantId: string; jobStatus: string };
-type User = { id: string; tenantId: string };
 
 export default async function CompaniesPage() {
   const session = await getServerSession(authOptions);
   if (!session) redirect("/login");
   if (session.user.role !== "super_admin") redirect("/dashboard");
 
-  const [tenants, allJobs, allUsers] = await Promise.all([
-    getRows("Tenants") as Promise<Tenant[]>,
-    getRows("Jobs") as Promise<Job[]>,
-    getRows("Users") as Promise<User[]>,
+  const [{ data: tenantsRaw }, { data: jobsRaw }, { data: usersRaw }] = await Promise.all([
+    supabaseAdmin.from("tenants").select("id, name, slug, email, phone, address, created_at").order("name"),
+    supabaseAdmin.from("jobs").select("tenant_id, job_status").or("is_archived.eq.false,is_archived.is.null"),
+    supabaseAdmin.from("users").select("tenant_id"),
   ]);
 
-  // Deduplicate tenants by id (running seed multiple times creates duplicates)
-  const seenIds = new Set<string>();
-  const uniqueTenants = tenants.filter((t) => {
-    if (seenIds.has(t.id)) return false;
-    seenIds.add(t.id);
-    return true;
-  });
+  // Pre-group into Maps — O(n) instead of O(n*m)
+  const jobCountMap = new Map<string, number>();
+  const activeJobMap = new Map<string, number>();
+  for (const j of jobsRaw ?? []) {
+    jobCountMap.set(j.tenant_id, (jobCountMap.get(j.tenant_id) ?? 0) + 1);
+    if (!["completed", "paid"].includes(j.job_status)) {
+      activeJobMap.set(j.tenant_id, (activeJobMap.get(j.tenant_id) ?? 0) + 1);
+    }
+  }
+  const userCountMap = new Map<string, number>();
+  for (const u of usersRaw ?? []) {
+    userCountMap.set(u.tenant_id, (userCountMap.get(u.tenant_id) ?? 0) + 1);
+  }
+
+  const uniqueTenants = (tenantsRaw ?? []).map((t) => ({
+    id: t.id,
+    name: t.name,
+    slug: t.slug,
+    email: t.email ?? "",
+    phone: t.phone ?? "",
+    address: t.address ?? "",
+    createdAt: t.created_at ?? "",
+  }));
 
   const tenantsWithStats = uniqueTenants
     .map((t) => ({
       ...t,
-      jobCount: allJobs.filter((j) => j.tenantId === t.id).length,
-      userCount: allUsers.filter((u) => u.tenantId === t.id).length,
-      activeJobs: allJobs.filter(
-        (j) => j.tenantId === t.id && !["completed", "paid"].includes(j.jobStatus)
-      ).length,
+      jobCount: jobCountMap.get(t.id) ?? 0,
+      userCount: userCountMap.get(t.id) ?? 0,
+      activeJobs: activeJobMap.get(t.id) ?? 0,
     }))
     .sort((a, b) => b.jobCount - a.jobCount);
 

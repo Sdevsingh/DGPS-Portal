@@ -1,7 +1,8 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
-import { findRow, findRows } from "./sheets";
+import { supabaseAdmin } from "./supabase-server";
+import { getOpsManagerTenantIds } from "./db";
 
 export const authOptions: NextAuthOptions = {
   session: { strategy: "jwt" },
@@ -21,47 +22,56 @@ export const authOptions: NextAuthOptions = {
         const email = credentials.email.toLowerCase().trim();
         const tenantSlug = credentials.tenantSlug?.trim().toLowerCase();
 
-        let users = await findRows(
-          "Users",
-          (r) => r.email?.toLowerCase() === email && r.isActive === "true"
-        );
-        if (users.length === 0) return null;
+        let query = supabaseAdmin
+          .from("users")
+          .select("*, tenants(id, name, slug)")
+          .eq("email", email)
+          .eq("is_active", true);
 
         if (tenantSlug) {
-          const tenantBySlug = await findRow(
-            "Tenants",
-            (r) => r.slug?.toLowerCase() === tenantSlug
-          );
-          if (!tenantBySlug) return null;
-          users = users.filter((u) => u.tenantId === tenantBySlug.id);
-          if (users.length === 0) return null;
+          const { data: tenant } = await supabaseAdmin
+            .from("tenants")
+            .select("id")
+            .eq("slug", tenantSlug)
+            .single();
+          if (!tenant) return null;
+          query = query.eq("tenant_id", tenant.id);
         }
 
-        // Handle duplicate emails across tenants by testing password against each account.
-        const matchingUsers: Record<string, string>[] = [];
+        const { data: users } = await query;
+        if (!users || users.length === 0) return null;
+
+        const matchingUsers = [];
         for (const candidate of users) {
-          const isMatch = await bcrypt.compare(credentials.password, candidate.passwordHash);
+          if (!candidate.password_hash) continue;
+          const isMatch = await bcrypt.compare(credentials.password, candidate.password_hash);
           if (isMatch) matchingUsers.push(candidate);
         }
 
         if (matchingUsers.length !== 1) return null;
         const user = matchingUsers[0];
+        const tenant = Array.isArray(user.tenants) ? user.tenants[0] : user.tenants;
 
-        // Look up tenant name
-        const tenant = await findRow("Tenants", (r) => r.id === user.tenantId);
+        let assignedTenantIds: string[] = [];
+        if (user.role === "operations_manager") {
+          assignedTenantIds = await getOpsManagerTenantIds(user.id);
+        }
 
         return {
           id: user.id,
           email: user.email,
           name: user.name,
           role: user.role,
-          tenantId: user.tenantId,
+          tenantId: user.tenant_id,
           tenantName: tenant?.name ?? "",
           tenantSlug: tenant?.slug ?? "",
+          assignedTenantIds,
+          clientCompanyName: user.client_company_name ?? "",
         };
       },
     }),
   ],
+
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
@@ -71,15 +81,20 @@ export const authOptions: NextAuthOptions = {
           tenantId: string;
           tenantName: string;
           tenantSlug: string;
+          assignedTenantIds: string[];
+          clientCompanyName: string;
         };
         token.id = user.id;
         token.role = authUser.role;
         token.tenantId = authUser.tenantId;
         token.tenantName = authUser.tenantName;
         token.tenantSlug = authUser.tenantSlug;
+        token.assignedTenantIds = authUser.assignedTenantIds ?? [];
+        token.clientCompanyName = authUser.clientCompanyName ?? "";
       }
       return token;
     },
+
     async session({ session, token }) {
       if (token) {
         session.user.id = token.id as string;
@@ -87,6 +102,8 @@ export const authOptions: NextAuthOptions = {
         session.user.tenantId = token.tenantId as string;
         session.user.tenantName = token.tenantName as string;
         session.user.tenantSlug = token.tenantSlug as string;
+        session.user.assignedTenantIds = (token.assignedTenantIds as string[]) ?? [];
+        session.user.clientCompanyName = (token.clientCompanyName as string) ?? "";
       }
       return session;
     },

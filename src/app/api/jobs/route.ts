@@ -1,50 +1,100 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { getRows, appendRow, findRows } from "@/lib/sheets";
+import { supabaseAdmin } from "@/lib/supabase-server";
+import { formatJob, formatThread, nextJobNumber } from "@/lib/db";
+import { Resend } from "resend";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+const NOTIFY_EMAIL = "domainservices33@gmail.com";
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { role, tenantId, id: userId } = session.user;
+  const { role, tenantId, id: userId, email: userEmail, assignedTenantIds } = session.user;
   const { searchParams } = new URL(req.url);
-
-  const filterTenantId = role === "super_admin"
-    ? searchParams.get("tenantId") || null
-    : tenantId;
 
   const status = searchParams.get("status");
   const quoteStatus = searchParams.get("quoteStatus");
   const priority = searchParams.get("priority");
   const paymentStatus = searchParams.get("paymentStatus");
   const inspectionRequired = searchParams.get("inspectionRequired");
+  const companyFilter = searchParams.get("tenantId") || searchParams.get("company");
+  const pendingOnFilter = searchParams.get("pendingOn");
 
-  const jobs = await findRows("Jobs", (row) => {
-    if (filterTenantId && row.tenantId !== filterTenantId) return false;
-    // Technicians can only see jobs assigned to them
-    if (role === "technician" && row.assignedToId !== userId) return false;
-    if (status && row.jobStatus !== status) return false;
-    if (quoteStatus && row.quoteStatus !== quoteStatus) return false;
-    if (priority && row.priority !== priority) return false;
-    if (paymentStatus && row.paymentStatus !== paymentStatus) return false;
-    if (inspectionRequired && row.inspectionRequired !== inspectionRequired) return false;
-    return true;
-  });
+  // Build base query — exclude archived jobs
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let q: any = supabaseAdmin.from("jobs").select("*").or("is_archived.eq.false,is_archived.is.null");
+
+  if (role === "super_admin") {
+    if (companyFilter) q = q.eq("tenant_id", companyFilter);
+  } else if (role === "operations_manager") {
+    const accessible = new Set([tenantId, ...(assignedTenantIds ?? [])]);
+    if (companyFilter && accessible.has(companyFilter)) {
+      q = q.eq("tenant_id", companyFilter);
+    } else {
+      q = q.in("tenant_id", Array.from(accessible));
+    }
+  } else if (role === "technician") {
+    q = q.eq("tenant_id", tenantId).eq("assigned_to_id", userId);
+  } else if (role === "client") {
+    // Clients see only their own jobs: those they created OR where agent_email matches their login email
+    q = q.eq("tenant_id", tenantId).or(`agent_email.eq.${userEmail},created_by_user_id.eq.${userId}`);
+  } else {
+    q = q.eq("tenant_id", tenantId);
+  }
+
+  if (status) q = q.eq("job_status", status);
+  if (quoteStatus) q = q.eq("quote_status", quoteStatus);
+  if (priority) q = q.eq("priority", priority);
+  if (paymentStatus) q = q.eq("payment_status", paymentStatus);
+
+  const { data: jobs, error } = await q.order("created_at", { ascending: false });
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Get threads for pendingOn filter and attaching to jobs
+  const jobIds = (jobs ?? []).map((j: { id: string }) => j.id);
+  let threads: Record<string, string>[] = [];
+  if (jobIds.length > 0) {
+    const { data: threadData } = await supabaseAdmin
+      .from("chat_threads")
+      .select("*")
+      .in("job_id", jobIds);
+    threads = (threadData ?? []).map(formatThread);
+  }
+  const threadMap = new Map(threads.map((t) => [t.jobId, t]));
+
+  let formattedJobs = (jobs ?? []).map(formatJob);
+
+  // Apply inspectionRequired filter after formatting
+  if (inspectionRequired) {
+    formattedJobs = formattedJobs.filter((j: Record<string, string>) => j.inspectionRequired === inspectionRequired);
+  }
+
+  // Apply pendingOn filter
+  if (pendingOnFilter === "overdue") {
+    const now = new Date();
+    formattedJobs = formattedJobs.filter((j: Record<string, string>) => {
+      const t = threadMap.get(j.id);
+      return t && t.pendingOn !== "none" && t.responseDueTime && new Date(t.responseDueTime) < now;
+    });
+  } else if (pendingOnFilter) {
+    formattedJobs = formattedJobs.filter((j: Record<string, string>) => {
+      const t = threadMap.get(j.id);
+      return t && t.pendingOn === pendingOnFilter;
+    });
+  }
 
   // Sort: high priority first, then newest
-  jobs.sort((a, b) => {
-    const pOrder = { high: 0, medium: 1, low: 2 };
-    const pDiff = (pOrder[a.priority as keyof typeof pOrder] ?? 1) - (pOrder[b.priority as keyof typeof pOrder] ?? 1);
+  const pOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
+  formattedJobs.sort((a: Record<string, string>, b: Record<string, string>) => {
+    const pDiff = (pOrder[a.priority] ?? 1) - (pOrder[b.priority] ?? 1);
     if (pDiff !== 0) return pDiff;
     return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
   });
 
-  // Attach chat thread pendingOn for each job
-  const threads = await getRows("ChatThreads");
-  const threadMap = new Map(threads.map((t) => [t.jobId, t]));
-
-  const jobsWithThread = jobs.map((job) => ({
+  const jobsWithThread = formattedJobs.map((job: Record<string, string>) => ({
     ...job,
     chatThread: threadMap.get(job.id) ?? null,
   }));
@@ -56,66 +106,178 @@ export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { role, tenantId, id: userId, name: userName } = session.user;
-  if (role === "client") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const { role, tenantId, id: userId, name: userName, email: userEmail } = session.user;
+
+  // Technicians cannot create jobs
+  if (role === "technician") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await req.json();
+
+  // Clients are scoped to their own tenant only
   const useTenantId = role === "super_admin" ? (body.tenantId || tenantId) : tenantId;
 
-  // Generate job number
-  const existingJobs = await findRows("Jobs", (r) => r.tenantId === useTenantId);
-  const jobNumber = `JOB-${String(existingJobs.length + 1).padStart(3, "0")}`;
+  // Validate required fields for client portal submissions
+  // Field mapping for client role (applies to any client company — DGPS, PropServ, ACE, etc.):
+  //   agent_name       → staff member from the client company raising this job (form input)
+  //   agent_contact    → that staff member's direct phone (form input)
+  //   agent_email      → that staff member's personal direct email — NOT the shared login email (form input)
+  //   company_name     → end customer name — the person who contacted the client company (form input)
+  //   customer_contact → end customer's phone number (form input)
+  if (role === "client") {
+    const missing = ["agentName", "agentContact", "companyName", "propertyAddress", "description"].filter((f) => !body[f]);
+    if (missing.length > 0) {
+      return NextResponse.json({ error: `Missing required fields: ${missing.join(", ")}` }, { status: 400 });
+    }
+  }
 
-  const job = await appendRow("Jobs", {
-    tenantId: useTenantId,
-    jobNumber,
-    dateReceived: new Date().toISOString(),
-    companyName: body.companyName ?? "",
-    agentName: body.agentName ?? "",
-    agentContact: body.agentContact ?? "",
-    agentEmail: body.agentEmail ?? "",
-    propertyAddress: body.propertyAddress ?? "",
-    description: body.description ?? "",
-    category: body.category ?? "Plumbing",
-    priority: body.priority ?? "medium",
-    source: body.source ?? "manual",
-    jobStatus: "new",
-    quoteStatus: "pending",
-    paymentStatus: "unpaid",
-    slaDeadline: body.slaDeadline ?? "",
-    assignedToId: body.assignedToId ?? "",
-    assignedToName: body.assignedToName ?? "",
-    teamGroup: body.teamGroup ?? "",
-    quoteAmount: "",
-    quoteGst: "",
-    quoteTotalWithGst: "",
-    inspectionRequired: body.inspectionRequired ?? "false",
-    notes: "",
-    createdByUserId: userId,
-    createdByName: userName,
-    createdByRole: role,
-  });
+  const jobNumber = await nextJobNumber(useTenantId);
+  const isClient = role === "client";
+
+  const { data: job, error: jobError } = await supabaseAdmin
+    .from("jobs")
+    .insert({
+      tenant_id: useTenantId,
+      job_number: jobNumber,
+      date_received: new Date().toISOString(),
+      company_name: body.companyName ?? "",
+      agent_name: body.agentName ?? "",
+      agent_contact: body.agentContact ?? "",
+      // For client submissions, agent_email = agent's personal direct email (form input)
+      // NOT the shared login email — that's only used for auth
+      agent_email: body.agentEmail ?? "",
+      customer_contact: body.customerContact ?? "",
+      customer_email: body.customerEmail ?? "",
+      property_address: body.propertyAddress ?? "",
+      description: body.description ?? "",
+      category: body.category ?? "General Maintenance",
+      priority: body.priority ?? "medium",
+      source: isClient ? "portal" : (body.source ?? "manual"),
+      job_status: "new",
+      quote_status: "pending",
+      payment_status: "unpaid",
+      sla_deadline: body.slaDeadline ?? null,
+      assigned_to_id: body.assignedToId ?? null,
+      assigned_to_name: body.assignedToName ?? null,
+      team_group: body.teamGroup ?? null,
+      inspection_required: body.inspectionRequired === "true" || body.inspectionRequired === true ? "required" : "not_required",
+      notes: null,
+      created_by_user_id: userId,
+      // For clients, store the individual agent's name (not the shared tenant name)
+      created_by_name: isClient ? body.agentName : userName,
+      created_by_role: role,
+    })
+    .select()
+    .single();
+
+  if (jobError || !job) {
+    return NextResponse.json({ error: jobError?.message ?? "Failed to create job" }, { status: 500 });
+  }
 
   // Auto-create chat thread
-  const thread = await appendRow("ChatThreads", {
-    tenantId: useTenantId,
-    jobId: job.id,
-    pendingOn: "none",
-    lastMessage: "",
-    lastMessageAt: "",
-    lastMessageBy: "",
-  });
+  // Client portal submissions: pending_on = "team" so ops manager sees it needs action
+  // Internal submissions: pending_on = "none"
+  const { data: thread } = await supabaseAdmin
+    .from("chat_threads")
+    .insert({
+      tenant_id: useTenantId,
+      job_id: job.id,
+      pending_on: isClient ? "team" : "none",
+      ...(isClient
+        ? {
+            last_message: `New request submitted by ${body.agentName}`,
+            last_message_at: new Date().toISOString(),
+            last_message_by: "client",
+          }
+        : {}),
+    })
+    .select()
+    .single();
 
-  // System message
-  await appendRow("Messages", {
-    tenantId: useTenantId,
-    threadId: thread.id,
-    senderId: "",
-    senderName: "System",
-    type: "system",
-    content: `Job ${jobNumber} created`,
-    metadata: "",
-  });
+  if (thread) {
+    const messages: object[] = [
+      {
+        tenant_id: useTenantId,
+        thread_id: thread.id,
+        sender_id: null,
+        sender_name: "System",
+        sender_role: "system",
+        type: "system",
+        content: isClient
+          ? `Job ${jobNumber} submitted via portal by ${body.agentName} (${body.agentEmail || userEmail} · ${body.agentContact}) for customer: ${body.companyName}${body.customerContact ? ` · ${body.customerContact}` : ""}`
+          : `Job ${jobNumber} created`,
+      },
+    ];
 
-  return NextResponse.json(job, { status: 201 });
+    await supabaseAdmin.from("messages").insert(messages);
+  }
+
+  // Send email notification to ops team for every client portal submission
+  if (isClient) {
+    try {
+      const portalUrl = `${process.env.NEXTAUTH_URL ?? "http://localhost:3000"}/jobs/${job.id}`;
+      const emailResult = await resend.emails.send({
+        from: `DGPS Portal <${process.env.RESEND_FROM ?? "noreply@dgps.com.au"}>`,
+        to: NOTIFY_EMAIL,
+        subject: `New Client Request — ${jobNumber} | ${body.propertyAddress ?? ""}`,
+        html: `
+          <div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:32px 16px;background:#f8faff;">
+            <div style="background:#fff;border-radius:16px;border:1px solid #e5e7eb;overflow:hidden;">
+
+              <!-- Header -->
+              <div style="background:linear-gradient(135deg,#1e3a8a 0%,#2563eb 60%,#4f46e5 100%);padding:24px 28px;">
+                <p style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.6);letter-spacing:0.08em;text-transform:uppercase;margin:0 0 4px;">New Client Request</p>
+                <h1 style="font-size:22px;font-weight:800;color:#fff;margin:0;">${jobNumber}</h1>
+              </div>
+
+              <!-- Body -->
+              <div style="padding:24px 28px;">
+
+                <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+                  <tr>
+                    <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;font-size:12px;color:#9ca3af;width:38%;vertical-align:top;">Property</td>
+                    <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;font-size:14px;font-weight:600;color:#111827;">${body.propertyAddress ?? "—"}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;font-size:12px;color:#9ca3af;vertical-align:top;">Category</td>
+                    <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;font-size:14px;color:#374151;">${body.category ?? "General Maintenance"}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;font-size:12px;color:#9ca3af;vertical-align:top;">Priority</td>
+                    <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;font-size:14px;color:#374151;text-transform:capitalize;">${body.priority ?? "medium"}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;font-size:12px;color:#9ca3af;vertical-align:top;">Customer</td>
+                    <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;font-size:14px;color:#374151;">${body.companyName ?? "—"}${body.customerContact ? ` · ${body.customerContact}` : ""}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;font-size:12px;color:#9ca3af;vertical-align:top;">Submitted by</td>
+                    <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;font-size:14px;color:#374151;">${body.agentName ?? "—"}${body.agentContact ? ` · ${body.agentContact}` : ""}${body.agentEmail ? `<br/><span style="color:#6b7280;font-size:13px;">${body.agentEmail}</span>` : ""}</td>
+                  </tr>
+                  ${body.description ? `
+                  <tr>
+                    <td style="padding:10px 0;font-size:12px;color:#9ca3af;vertical-align:top;">Description</td>
+                    <td style="padding:10px 0;font-size:14px;color:#374151;line-height:1.6;">${body.description.replace(/\n/g, "<br/>")}</td>
+                  </tr>` : ""}
+                </table>
+
+                <a href="${portalUrl}" style="display:inline-block;padding:12px 24px;background:#2563eb;color:#fff;border-radius:10px;font-size:14px;font-weight:700;text-decoration:none;">
+                  View Job in Portal →
+                </a>
+
+              </div>
+
+              <div style="padding:16px 28px;border-top:1px solid #f3f4f6;background:#f9fafb;">
+                <p style="font-size:11px;color:#9ca3af;margin:0;">This notification was sent automatically by the DGPS Portal when a client submitted a new service request.</p>
+              </div>
+            </div>
+          </div>
+        `,
+      });
+      console.log("[DGPS] New-job notification email result:", JSON.stringify(emailResult));
+    } catch (emailErr) {
+      console.error("[DGPS] New-job notification email failed:", emailErr);
+    }
+  }
+
+  return NextResponse.json(formatJob(job), { status: 201 });
 }

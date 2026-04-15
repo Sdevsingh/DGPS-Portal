@@ -1,45 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
-import { findRow } from "@/lib/sheets";
-
-// Simple in-memory rate limiter — 10 checks/min per IP
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-
-function isRateLimited(ip: string): boolean {
-  const now = Date.now();
-  const entry = rateLimitMap.get(ip);
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(ip, { count: 1, resetAt: now + 60_000 });
-    return false;
-  }
-  if (entry.count >= 10) return true;
-  entry.count++;
-  return false;
-}
+import { supabaseAdmin } from "@/lib/supabase-server";
 
 export async function GET(req: NextRequest) {
-  const ip = req.headers.get("x-forwarded-for") ?? "unknown";
-  if (isRateLimited(ip)) {
-    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  const email = req.nextUrl.searchParams.get("email");
+  const tenantSlug = req.nextUrl.searchParams.get("tenantSlug");
+
+  if (!email || !tenantSlug) {
+    return NextResponse.json({ error: "email and tenantSlug required" }, { status: 400 });
   }
 
-  const { searchParams } = new URL(req.url);
-  const email = searchParams.get("email")?.toLowerCase().trim();
-  const slug = searchParams.get("slug");
+  const { data: tenant } = await supabaseAdmin
+    .from("tenants")
+    .select("id")
+    .eq("slug", tenantSlug)
+    .single();
 
-  if (!email || !slug) {
-    return NextResponse.json({ error: "email and slug are required" }, { status: 400 });
-  }
+  if (!tenant) return NextResponse.json({ exists: false });
 
-  const tenant = await findRow("Tenants", (r) => r.slug === slug);
-  if (!tenant) {
-    return NextResponse.json({ exists: false });
-  }
+  const { data: user } = await supabaseAdmin
+    .from("users")
+    .select("id")
+    .eq("tenant_id", tenant.id)
+    .eq("email", email.toLowerCase())
+    .single();
 
-  const user = await findRow(
-    "Users",
-    (r) => r.email.toLowerCase() === email && r.tenantId === tenant.id
-  );
-
-  // Only return exists — never expose user data
   return NextResponse.json({ exists: !!user });
 }

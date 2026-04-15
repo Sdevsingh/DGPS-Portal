@@ -23,3 +23,20 @@ export async function requireTenantId(): Promise<string> {
   if (!session) throw new Error("Unauthorized");
   return session.user.tenantId;
 }
+
+/**
+ * Returns tenant IDs an ops manager can access.
+ * Super admin gets null (all tenants).
+ */
+export async function getAccessibleTenantIds(): Promise<string[] | null> {
+  const session = await getServerSession(authOptions);
+  if (!session) return [];
+  const { role, tenantId, assignedTenantIds } = session.user;
+  if (role === "super_admin") return null; // null = all
+  if (role === "operations_manager") {
+    // Own tenant + assigned tenants
+    const ids = new Set([tenantId, ...(assignedTenantIds ?? [])]);
+    return Array.from(ids);
+  }
+  return [tenantId];
+}

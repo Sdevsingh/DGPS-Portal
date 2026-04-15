@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { appendRow, updateRow, findRow } from "@/lib/sheets";
+import { supabaseAdmin } from "@/lib/supabase-server";
+import { formatInspection } from "@/lib/db";
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -10,18 +11,29 @@ export async function POST(req: NextRequest) {
 
   const { jobId, tenantId, checklist, notes } = await req.json();
 
-  const inspection = await appendRow("Inspections", {
-    tenantId,
-    jobId,
-    inspectedBy: session.user.id,
-    inspectedAt: new Date().toISOString(),
-    checklist: JSON.stringify(checklist),
-    notes: notes ?? "",
-    status: Object.values(checklist as Record<string, string>).includes("fail") ? "failed" : "passed",
-  });
+  const hasFailure = Object.values(checklist as Record<string, string>).includes("fail");
 
-  // Update job to mark inspection done
-  await updateRow("Jobs", jobId, { inspectionRequired: "done" });
+  const { data: inspection, error } = await supabaseAdmin
+    .from("inspections")
+    .insert({
+      tenant_id: tenantId,
+      job_id: jobId,
+      inspected_by: session.user.id,
+      inspected_at: new Date().toISOString(),
+      checklist,
+      notes: notes ?? null,
+      status: hasFailure ? "failed" : "passed",
+    })
+    .select()
+    .single();
 
-  return NextResponse.json(inspection, { status: 201 });
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Update job inspection_required to "done"
+  await supabaseAdmin.from("jobs").update({
+    inspection_required: "done",
+    updated_at: new Date().toISOString(),
+  }).eq("id", jobId);
+
+  return NextResponse.json(formatInspection(inspection), { status: 201 });
 }

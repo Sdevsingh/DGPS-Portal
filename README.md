@@ -1,122 +1,108 @@
-# Tradie Ops — DGPS Portal
+# DGPS Portal
 
-A job management platform for Domain Group Property Services built with Next.js, Google Sheets (as the database), and NextAuth.
+Multi-tenant, role-based job operations platform for Domain Group Property Services.
 
----
+This branch aligns with the **Emergent master implementation spec** and uses a **Supabase-first** architecture for data, auth integration, and real-time chat.
 
-## What's been built
+## Core Docs
 
-- **Dashboard** — multi-tenant stat cards per company
-- **Job management** — create, list, filter, and view job details
-- **Quotes** — line items with GST calculation, approve/decline with confirmation
-- **Real-time chat** — per-job thread using SSE (no Socket.io)
-- **Role-based access** — `super_admin`, `operations_manager`, `technician`, `client`
-- **Client portal** — `/client` and `/client/jobs/[id]`
-- **Public request form** — `/request/[slug]` with 2-step wizard and password creation
-- **Technician mobile view** — `/technician` and `/technician/jobs/[id]`
-- **Company & user management**
-- **Reports** — Excel export
-- **Data migration tool** — fixes Google Sheets schema mismatches
+- `EMERGENT_MASTER_GUIDE.md` — complete implementation spec and migration plan (authoritative)
+- `DGPS_Portal_Complete_Guide.md` — product and workflow reference
 
----
+## Platform Scope
 
-## Prerequisites
+- Full job lifecycle: request, quote, dispatch, execution, inspection, invoicing, payment
+- Multi-tenant isolation by company (`tenant_id` across entities)
+- Role-based access: `super_admin`, `operations_manager`, `technician`, `client`
+- Client, technician, operations, and super-admin experiences
+- Real-time job chat and response tracking
+- Reporting and export workflows
 
-Before you start, make sure you have:
+## Tech Stack
 
-- [Node.js](https://nodejs.org/) v18 or later
-- `npm` (comes with Node)
-- The `.env` file — **get this from the team** (contains Google credentials and auth secret)
+- Next.js 16 (App Router) + React 19
+- TypeScript
+- Tailwind CSS v4 + Framer Motion
+- NextAuth v4 (Credentials + Google OAuth)
+- Supabase (PostgreSQL + Realtime + Storage)
+- Recharts, jsPDF, xlsx, Resend
 
----
+## Environment Variables
 
-## Running locally (step by step)
+Create a local env file (`.env`) in the project root with:
 
-### 1. Clone the repo
+```env
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=
+
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+
+RESEND_API_KEY=
+RESEND_FROM=
+```
+
+Important: keep `SUPABASE_SERVICE_ROLE_KEY` server-only. Never expose it to client code.
+
+## Local Setup
+
+1. Clone and enter the repo
 
 ```bash
 git clone https://github.com/Sdevsingh/DGPS-Portal.git
 cd DGPS-Portal
 ```
 
-### 2. Install dependencies
+2. Install dependencies
 
 ```bash
 npm install
 ```
 
-### 3. Add the environment file
+3. Provision Supabase schema
 
-Get the `.env` file from the team and place it in the root of the project (same level as `package.json`).
+- Create a Supabase project.
+- Apply the SQL schema blocks from `EMERGENT_MASTER_GUIDE.md` (Part 4) in order.
 
-It should contain keys like:
-```
-GOOGLE_CLIENT_EMAIL=...
-GOOGLE_PRIVATE_KEY=...
-GOOGLE_SHEET_ID=...
-NEXTAUTH_SECRET=...
-NEXTAUTH_URL=http://localhost:3000
-```
-
-### 4. Seed the Google Sheet
-
-This creates all the required tabs and populates demo data with the correct schema:
+4. Seed demo data (optional but recommended)
 
 ```bash
-npx tsx src/lib/sheets-seed.ts
+npx tsx --env-file=.env scripts/seed-supabase.ts
 ```
 
-> Only needs to be run once. If you re-run it, it will reset the data.
-
-### 5. Start the dev server
+5. Start development server
 
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Open `http://localhost:3000`.
 
----
+## Demo Credentials (Seed Script)
 
-## Demo accounts (for testing)
+Default password for seeded users: `password123`
 
-Use these on the login page (there are quick-fill buttons):
+- Super Admin: `admin@dgps.com.au`
+- Ops Manager (DGPS): `ops@dgps.com.au`
+- Technician (DGPS): `tech@dgps.com.au`
+- Client (DGPS): `client@dgps.com.au`
 
-| Role | Email | Password |
-|------|-------|----------|
-| Super Admin | admin@dgps.com.au | (use quick-fill on login page) |
-| Operations Manager | ops@dgps.com.au | (use quick-fill) |
-| Technician | tech@dgps.com.au | (use quick-fill) |
-| Client | client@dgps.com.au | (use quick-fill) |
+Additional tenant users are also seeded for `propserv`.
 
----
+## Useful Commands
 
-## First-time setup after seeding
-
-1. Log in as `admin@dgps.com.au`
-2. Go to **Settings → Data Migration**
-3. Click **Run Migration** — this fixes any sheet column mismatches
-4. You're good to go
-
----
-
-## Useful commands
-
-| Command | What it does |
-|---------|--------------|
-| `npm run dev` | Start the development server |
+| Command | Purpose |
+|---|---|
+| `npm run dev` | Start local dev server |
 | `npm run build` | Build for production |
-| `npm run start` | Run the production build |
+| `npm run start` | Run production build |
 | `npm run lint` | Run ESLint |
-| `npx tsx src/lib/sheets-seed.ts` | Seed the Google Sheet with demo data |
+| `npx tsx --env-file=.env scripts/seed-supabase.ts` | Seed Supabase demo data |
 
----
+## Branch Workflow
 
-## Tech stack
-
-- **Framework**: Next.js 16 (App Router)
-- **Styling**: Tailwind CSS v4
-- **Auth**: NextAuth v4
-- **Database**: Google Sheets (via Google Sheets API)
-- **Real-time**: Server-Sent Events (SSE)
-- **Language**: TypeScript
+Current working feature branch for this track: `DGPS_V2`.

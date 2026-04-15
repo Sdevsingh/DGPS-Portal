@@ -1,9 +1,9 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { findRows, getRows } from "@/lib/sheets";
+import { supabaseAdmin } from "@/lib/supabase-server";
+import { formatUser, formatTenant } from "@/lib/db";
 import { redirect } from "next/navigation";
 import UserManagement from "@/components/settings/UserManagement";
-
 
 export default async function UsersSettingsPage() {
   const session = await getServerSession(authOptions);
@@ -12,14 +12,13 @@ export default async function UsersSettingsPage() {
   const { role, tenantId } = session.user;
   if (role !== "super_admin") redirect("/dashboard");
 
-  void tenantId;
-
-  const [users, tenants] = await Promise.all([
-    getRows("Users"),
-    getRows("Tenants"),
+  const [{ data: usersRaw }, { data: tenantsRaw }] = await Promise.all([
+    supabaseAdmin.from("users").select("*").order("name"),
+    supabaseAdmin.from("tenants").select("*").order("name"),
   ]);
 
-  const safeUsers = users.map(({ passwordHash: _, ...u }) => u);
+  const safeUsers = (usersRaw ?? []).map(formatUser);
+  const tenants = (tenantsRaw ?? []).map(formatTenant);
 
   return (
     <div className="p-4 md:p-8 max-w-4xl mx-auto">

@@ -1,0 +1,50 @@
+{
+  "summary": "Comprehensive testing of DGPS Portal Supabase migration. All APIs work correctly with session auth. Login flow works for all roles. Job detail page CRASHES due to Supabase client initialization bug in browser. All other pages load correctly.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "JobDetailPage / ChatPanel",
+        "issue": "Job detail page throws 'Something went wrong' error. Root cause: src/lib/supabase.ts exports both browser client (supabase) and admin client (supabaseAdmin) in ONE file. When ChatPanel.tsx (a client component) imports `supabase`, the browser also tries to initialize supabaseAdmin with SUPABASE_SERVICE_ROLE_KEY, which is undefined client-side (not NEXT_PUBLIC_ prefixed). Fix: Split supabase.ts into supabase-client.ts (browser) and supabase-server.ts (server only).",
+        "selector": "/jobs/[id]",
+        "priority": "CRITICAL"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "Chat panel real-time messaging",
+        "issue": "Cannot test because job detail page crashes before chat panel renders",
+        "affected_selectors": ["ChatPanel"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/test_reports/iteration_1.json"],
+  "action_items": [
+    "CRITICAL: Split src/lib/supabase.ts into two files: (1) src/lib/supabase-client.ts with only `createClient(NEXT_PUBLIC_URL, NEXT_PUBLIC_ANON_KEY)` for client components, (2) src/lib/supabase-server.ts with supabaseAdmin using service role key. Update all imports accordingly. ChatPanel.tsx should import from supabase-client.ts only.",
+    "After fix, re-test job detail page and chat panel real-time messaging"
+  ],
+  "critical_code_review_comments": [
+    "src/lib/supabase.ts: Exports both browser client and server admin client in same file. Client components importing `supabase` inadvertently pull in supabaseAdmin initialization which fails client-side due to missing non-NEXT_PUBLIC_ env var SUPABASE_SERVICE_ROLE_KEY. This is a security risk too - mixing server-only keys in client bundles.",
+    "Analytics page: Revenue, Quotations, Insights tabs appear to render but content area is blank below KPI cards - may need additional content components"
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (3/3 APIs tested: /api/jobs, /api/tenants, /api/analytics/overview)",
+    "frontend": "75% (9/12 features working; job detail, chat panel blocked by supabase bug)"
+  },
+  "test_credentials": "admin@dgps.com.au / password123, ops@dgps.com.au / password123, tech@dgps.com.au / password123, client@dgps.com.au / password123",
+  "seed_data_creation": "None - existing seeded data used",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "RBAC working: super_admin → /dashboard (all 10 jobs), ops_manager → /dashboard (DGPS only), technician → /technician (assigned jobs only, 2 jobs for Marcus Williams), client → /client (3 jobs). All APIs require NextAuth session cookie. Auth CSRF flow: GET /api/auth/csrf → POST /api/auth/callback/credentials. Job detail page crashes due to supabase.ts splitting issue - this is the main bug to fix and retest.",
+  "rca_of_issue": {
+    "bug": "Job Detail page shows 'Something went wrong'",
+    "root_cause": "src/lib/supabase.ts creates both `supabase` (browser client using NEXT_PUBLIC_ keys) and `supabaseAdmin` (server admin using SUPABASE_SERVICE_ROLE_KEY). ChatPanel.tsx is a 'use client' component that imports `{ supabase }` from this file. Next.js bundles the ENTIRE file for the browser, causing `createClient(URL, undefined)` to be called client-side for supabaseAdmin. Supabase SDK throws 'supabaseKey is required'.",
+    "reproduction": "Navigate to /jobs/[any-id] while logged in as admin",
+    "fix": "Create src/lib/supabase-client.ts with only browser client, update ChatPanel.tsx import"
+  }
+}
