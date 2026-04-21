@@ -38,19 +38,21 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
   if (!session) redirect("/login");
 
   const { id } = await params;
-  const { role, tenantId, id: userId, email, assignedTenantIds } = session.user;
+  const { role, tenantId, assignedTenantIds } = session.user;
+
+  // Role-aware routing — email links always point to /jobs/[id], so
+  // send clients and technicians to their tailored detail pages.
+  if (role === "client") redirect(`/client/jobs/${id}`);
+  if (role === "technician") redirect(`/technician/jobs/${id}`);
 
   const { data: jobData } = await supabaseAdmin.from("jobs").select("*").eq("id", id).single();
   if (!jobData) notFound();
+  if (jobData.is_archived) notFound();
 
   // Access control
   if (role !== "super_admin") {
     const accessible = new Set([tenantId, ...(assignedTenantIds ?? [])]);
     if (!accessible.has(jobData.tenant_id)) notFound();
-  }
-  if (role === "client") {
-    const canAccess = jobData.agent_email?.toLowerCase() === email?.toLowerCase() || jobData.created_by_user_id === userId;
-    if (!canAccess) notFound();
   }
 
   const job = formatJob(jobData);

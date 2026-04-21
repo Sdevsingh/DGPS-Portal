@@ -57,6 +57,27 @@ function LoginPageInner() {
     }
   }, [authError]);
 
+  // If already logged in, skip the form and honour the callbackUrl
+  useEffect(() => {
+    const callbackUrl = searchParams?.get("callbackUrl");
+    fetch("/api/auth/session")
+      .then((r) => r.json())
+      .then((session) => {
+        if (!session?.user?.role) return;
+        const role = session.user.role;
+        if (callbackUrl) {
+          router.replace(callbackUrl);
+        } else if (role === "client") {
+          router.replace("/client");
+        } else if (role === "technician") {
+          router.replace("/technician");
+        } else {
+          router.replace("/dashboard");
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
@@ -80,7 +101,10 @@ function LoginPageInner() {
         setLoading(false);
         return;
       }
-      if (role === "client") {
+      const callbackUrl = searchParams?.get("callbackUrl");
+      if (callbackUrl) {
+        router.push(callbackUrl);
+      } else if (role === "client") {
         router.push("/client");
       } else if (role === "technician") {
         router.push("/technician");

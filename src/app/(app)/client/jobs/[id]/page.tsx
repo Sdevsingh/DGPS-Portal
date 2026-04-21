@@ -45,6 +45,7 @@ export default async function ClientJobDetailPage({ params }: { params: Promise<
 
   const { data: jobData } = await supabaseAdmin.from("jobs").select("*").eq("id", id).single();
   if (!jobData) notFound();
+  if (jobData.is_archived) notFound();
 
   const isOwner =
     jobData.tenant_id === tenantId &&

@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
     used: false,
   });
 
-  const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+  const baseUrl = process.env.NEXTAUTH_URL ?? "https://dgps-portal.netlify.app";
   const resetUrl = `${baseUrl}/reset-password?token=${token}`;
   const toEmail = process.env.RESEND_TEST_EMAIL ?? user.email;
 

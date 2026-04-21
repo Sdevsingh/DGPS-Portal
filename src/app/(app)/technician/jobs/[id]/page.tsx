@@ -37,6 +37,7 @@ export default async function TechnicianJobDetailPage({ params }: { params: Prom
 
   const { data: jobData } = await supabaseAdmin.from("jobs").select("*").eq("id", id).single();
   if (!jobData) notFound();
+  if (jobData.is_archived) notFound();
   if (role !== "super_admin" && jobData.tenant_id !== tenantId) notFound();
 
   const job = formatJob(jobData);

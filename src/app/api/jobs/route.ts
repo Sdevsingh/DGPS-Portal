@@ -214,9 +214,10 @@ export async function POST(req: NextRequest) {
   // Send email notification to ops team for every client portal submission
   if (isClient) {
     try {
-      const portalUrl = `${process.env.NEXTAUTH_URL ?? "http://localhost:3000"}/jobs/${job.id}`;
+      const portalUrl = `${process.env.NEXTAUTH_URL ?? "https://dgps-portal.netlify.app"}/login?callbackUrl=/jobs/${job.id}`;
       const emailResult = await resend.emails.send({
         from: `DGPS Portal <${process.env.RESEND_FROM ?? "noreply@dgps.com.au"}>`,
+        replyTo: process.env.RESEND_REPLY_TO,
         to: NOTIFY_EMAIL,
         subject: `New Client Request — ${jobNumber} | ${body.propertyAddress ?? ""}`,
         html: `

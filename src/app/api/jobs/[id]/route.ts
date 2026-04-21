@@ -13,6 +13,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const { data: job } = await supabaseAdmin.from("jobs").select("*").eq("id", id).single();
   if (!job) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (job.is_archived) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   // Access control
   if (role === "super_admin") {
