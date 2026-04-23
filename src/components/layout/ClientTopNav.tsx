@@ -1,4 +1,5 @@
 "use client";
+
 import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
 
@@ -7,21 +8,32 @@ export default function ClientTopNav() {
   const name = session?.user?.name ?? "";
 
   return (
-    <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
+    <header className="bg-white border-b border-gray-100 sticky top-0 z-10 shadow-sm">
       <div className="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
-        <Link href="/client" className="flex items-center gap-2">
-          <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center">
-            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-            </svg>
+        <Link href="/client" className="flex items-center">
+          <div className="relative inline-flex items-center justify-center">
+            <div className="logo-glow absolute -inset-4 bg-blue-200/40 rounded-full blur-xl pointer-events-none" />
+            <div className="logo-glow-sm absolute -inset-2 bg-indigo-200/30 rounded-full blur-md pointer-events-none" style={{ animationDelay: "0.5s" }} />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/Maintenr.png"
+              alt="Maintenr"
+              className="relative h-8 w-auto object-contain"
+            />
           </div>
-          <span className="font-semibold text-gray-900 text-sm">DGPS</span>
         </Link>
         <div className="flex items-center gap-3">
-          <span className="text-sm text-gray-600 hidden sm:block">{name}</span>
+          {name && (
+            <div className="hidden sm:flex items-center gap-2">
+              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
+                <span className="text-[11px] font-semibold text-white">{name[0]?.toUpperCase()}</span>
+              </div>
+              <span className="text-sm text-gray-600 font-medium">{name}</span>
+            </div>
+          )}
           <button
             onClick={() => signOut({ callbackUrl: "/login" })}
-            className="text-sm text-gray-500 hover:text-red-600 transition-colors"
+            className="text-xs font-medium text-gray-400 hover:text-red-500 transition-colors px-3 py-1.5 rounded-lg hover:bg-red-50"
           >
             Sign out
           </button>

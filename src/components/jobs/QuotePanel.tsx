@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 
 type QuoteItem = { id: string; description: string; quantity: string; unitPrice: string; total: string };
@@ -24,6 +24,19 @@ export default function QuotePanel({ jobId, quoteStatus, quoteAmount, quoteGst, 
 
   const isOpsOrAdmin = role === "operations_manager" || role === "super_admin";
 
+  function openForm() {
+    if (quoteItems.length > 0) {
+      setItems(quoteItems.map((item) => ({
+        description: item.description,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+      })));
+    } else {
+      setItems([{ description: "", quantity: "1", unitPrice: "" }]);
+    }
+    setShowForm(true);
+  }
+
   function addItem() {
     setItems((prev) => [...prev, { description: "", quantity: "1", unitPrice: "" }]);
   }
@@ -36,13 +49,15 @@ export default function QuotePanel({ jobId, quoteStatus, quoteAmount, quoteGst, 
     setItems((prev) => prev.filter((_, i) => i !== index));
   }
 
-  const formSubtotal = items.reduce((sum, item) => {
-    const qty = parseFloat(item.quantity) || 0;
-    const price = parseFloat(item.unitPrice) || 0;
-    return sum + qty * price;
-  }, 0);
-  const formGst = parseFloat((formSubtotal * 0.1).toFixed(2));
-  const formTotal = parseFloat((formSubtotal + formGst).toFixed(2));
+  const { formSubtotal, formGst, formTotal } = useMemo(() => {
+    const subtotal = items.reduce((sum, item) => {
+      const qty = parseFloat(item.quantity) || 0;
+      const price = parseFloat(item.unitPrice) || 0;
+      return sum + qty * price;
+    }, 0);
+    const gst = parseFloat((subtotal * 0.1).toFixed(2));
+    return { formSubtotal: subtotal, formGst: gst, formTotal: parseFloat((subtotal + gst).toFixed(2)) };
+  }, [items]);
 
   async function sendQuote() {
     if (items.some((i) => !i.description || !i.unitPrice)) return;
@@ -79,9 +94,15 @@ export default function QuotePanel({ jobId, quoteStatus, quoteAmount, quoteGst, 
       <div className="flex items-center justify-between mb-3">
         <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Quote</p>
         <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
-          { pending: "bg-gray-100 text-gray-600", sent: "bg-blue-100 text-blue-700", approved: "bg-green-100 text-green-700", rejected: "bg-red-100 text-red-700" }[quoteStatus] ?? "bg-gray-100 text-gray-600"
+          ({
+            pending: "bg-gray-100 text-gray-600",
+            sent: "bg-blue-100 text-blue-700",
+            approved: "bg-green-100 text-green-700",
+            rejected: "bg-red-100 text-red-700",
+            tech_revision_pending: "bg-orange-100 text-orange-700",
+          } as Record<string, string>)[quoteStatus] ?? "bg-gray-100 text-gray-600"
         }`}>
-          {quoteStatus}
+          {quoteStatus === "tech_revision_pending" ? "Revision Requested" : quoteStatus}
         </span>
       </div>
 
@@ -111,17 +132,20 @@ export default function QuotePanel({ jobId, quoteStatus, quoteAmount, quoteGst, 
               <span>Total incl. GST</span>
               <span>${Number(quoteTotalWithGst).toFixed(2)}</span>
             </div>
+            <p className="text-[11px] text-gray-400 pt-2">
+              All prices stated are inclusive of Goods and Services Tax (GST) at 10%.
+            </p>
           </div>
         </div>
       )}
 
       {/* Ops: send/update quote form */}
-      {isOpsOrAdmin && (quoteStatus === "pending" || quoteStatus === "rejected" || quoteStatus === "sent") && (
+      {isOpsOrAdmin && ["pending", "rejected", "sent", "approved", "tech_revision_pending"].includes(quoteStatus) && (
         <>
           {!showForm ? (
-            <button onClick={() => setShowForm(true)}
+            <button onClick={openForm}
               className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl text-sm transition-colors">
-              {quoteStatus === "sent" ? "Revise Quote" : hasQuote ? "Update Quote" : "Create & Send Quote"}
+              {quoteStatus === "tech_revision_pending" ? "Update Revised Quote" : quoteStatus === "sent" || quoteStatus === "approved" ? "Revise Quote" : hasQuote ? "Update Quote" : "Create & Send Quote"}
             </button>
           ) : (
             <div className="space-y-3">
@@ -166,6 +190,9 @@ export default function QuotePanel({ jobId, quoteStatus, quoteAmount, quoteGst, 
                   <div className="flex justify-between font-bold text-gray-900 pt-1 border-t border-gray-200">
                     <span>Total incl. GST</span><span>${formTotal.toFixed(2)}</span>
                   </div>
+                  <p className="text-[11px] text-gray-400 pt-2">
+                    All prices stated are inclusive of Goods and Services Tax (GST) at 10%.
+                  </p>
                 </div>
               )}
 

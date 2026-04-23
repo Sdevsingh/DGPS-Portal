@@ -1,10 +1,17 @@
 "use client";
 
+import * as Select from "@radix-ui/react-select";
 import { useRouter, useSearchParams } from "next/navigation";
 
+// Radix Select doesn't accept "" as an item value — use sentinel instead
+const ALL = "__all__";
+const toRadix = (v: string) => v || ALL;
+const fromRadix = (v: string) => (v === ALL ? "" : v);
+
 const JOB_STATUS_OPTIONS = [
-  { value: "", label: "All Statuses" },
+  { value: ALL, label: "Status" },
   { value: "new", label: "New" },
+  { value: "ready", label: "Ready" },
   { value: "in_progress", label: "In Progress" },
   { value: "completed", label: "Completed" },
   { value: "invoiced", label: "Invoiced" },
@@ -12,7 +19,7 @@ const JOB_STATUS_OPTIONS = [
 ];
 
 const QUOTE_STATUS_OPTIONS = [
-  { value: "", label: "All Quotes" },
+  { value: ALL, label: "Quote" },
   { value: "pending", label: "Pending" },
   { value: "sent", label: "Sent" },
   { value: "approved", label: "Approved" },
@@ -20,13 +27,93 @@ const QUOTE_STATUS_OPTIONS = [
 ];
 
 const PRIORITY_OPTIONS = [
-  { value: "", label: "All Priorities" },
+  { value: ALL, label: "Priority" },
   { value: "high", label: "High" },
   { value: "medium", label: "Medium" },
   { value: "low", label: "Low" },
 ];
 
-export default function JobFilters() {
+type Tenant = { id: string; name: string };
+
+// ─── Custom Radix Select ──────────────────────────────────────────────────────
+
+function FilterSelect({
+  value,
+  onChange,
+  options,
+  active,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+  active: boolean;
+}) {
+  const radixValue = toRadix(value);
+  const selected = options.find((o) => o.value === radixValue) ?? options[0];
+
+  return (
+    <Select.Root value={radixValue} onValueChange={(v) => onChange(fromRadix(v))}>
+      <Select.Trigger
+        className={`inline-flex items-center gap-2 pl-3 pr-2.5 py-2 text-sm rounded-xl border cursor-pointer font-medium transition-all outline-none focus:outline-none select-none shrink-0 ${
+          active
+            ? "bg-blue-600 text-white border-blue-600"
+            : "bg-white border-gray-200 text-gray-700 hover:border-blue-300"
+        }`}
+      >
+        <Select.Value>{selected.label}</Select.Value>
+        <Select.Icon>
+          <svg
+            className={`w-3.5 h-3.5 ${active ? "text-white" : "text-gray-400"}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </Select.Icon>
+      </Select.Trigger>
+
+      <Select.Portal>
+        <Select.Content
+          position="popper"
+          sideOffset={6}
+          className="z-50 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden min-w-[160px]"
+        >
+          <Select.Viewport className="p-1">
+            {options.map((o) => (
+              <Select.Item
+                key={o.value}
+                value={o.value}
+                className="relative flex items-center gap-2 px-3 py-2 text-sm text-gray-700 rounded-lg cursor-pointer outline-none hover:bg-blue-50 hover:text-blue-700 data-[highlighted]:bg-blue-50 data-[highlighted]:text-blue-700 data-[state=checked]:font-semibold data-[state=checked]:text-blue-700"
+              >
+                <Select.ItemText>{o.label}</Select.ItemText>
+                <Select.ItemIndicator className="ml-auto">
+                  <svg className="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                  </svg>
+                </Select.ItemIndicator>
+              </Select.Item>
+            ))}
+          </Select.Viewport>
+        </Select.Content>
+      </Select.Portal>
+    </Select.Root>
+  );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
+
+export default function JobFilters({
+  tenants = [],
+  showCompanyFilter = false,
+  agentNames = [],
+  showAgentFilter = false,
+}: {
+  tenants?: Tenant[];
+  showCompanyFilter?: boolean;
+  agentNames?: string[];
+  showAgentFilter?: boolean;
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -35,131 +122,96 @@ export default function JobFilters() {
   const priority = searchParams.get("priority") ?? "";
   const paymentStatus = searchParams.get("paymentStatus") ?? "";
   const inspectionRequired = searchParams.get("inspectionRequired") ?? "";
+  const company = searchParams.get("company") ?? "";
+  const agentName = searchParams.get("agentName") ?? "";
 
   function buildUrl(key: string, value: string) {
     const p = new URLSearchParams(searchParams.toString());
     if (value) p.set(key, value); else p.delete(key);
-    const qs = p.toString();
-    return `/jobs${qs ? `?${qs}` : ""}`;
+    return `/jobs${p.toString() ? `?${p.toString()}` : ""}`;
   }
 
   function handleSelect(key: string, value: string) {
     router.push(buildUrl(key, value));
   }
 
-  const activeCount = [status, quoteStatus, priority, paymentStatus, inspectionRequired].filter(Boolean).length;
+  function toggle(key: string, value: string, current: string) {
+    handleSelect(key, current === value ? "" : value);
+  }
 
-  const selectCls = (active: boolean) =>
-    `appearance-none pl-3 pr-8 py-2 text-sm rounded-xl border cursor-pointer font-medium transition-all outline-none ${
-      active
-        ? "bg-blue-600 text-white border-blue-600"
-        : "bg-white border-gray-200 text-gray-700 hover:border-blue-300"
+  const activeCount = [status, quoteStatus, priority, paymentStatus, inspectionRequired, company, agentName].filter(Boolean).length;
+
+  const pillCls = (active: boolean, activeColor: string) =>
+    `shrink-0 px-3 py-2 text-sm rounded-xl border font-medium transition-all ${
+      active ? `${activeColor} text-white border-transparent` : "bg-white border-gray-200 text-gray-700 hover:border-blue-300"
     }`;
 
+  const companyOptions = [
+    { value: ALL, label: "Company" },
+    ...tenants.map((t) => ({ value: t.id, label: t.name })),
+  ];
+
+  const agentOptions = [
+    { value: ALL, label: "Agent" },
+    ...agentNames.map((n) => ({ value: n, label: n })),
+  ];
+
   return (
-    <div className="flex items-center gap-2 mb-5 overflow-x-auto pb-1 -mx-4 px-4 md:mx-0 md:px-0 md:flex-wrap">
+    <div className="flex items-center gap-2 mb-5 flex-wrap">
+
+      {/* Agent filter */}
+      {showAgentFilter && agentNames.length > 0 && (
+        <FilterSelect
+          value={agentName}
+          onChange={(v) => handleSelect("agentName", v)}
+          options={agentOptions}
+          active={!!agentName}
+        />
+      )}
+
+      {/* Company filter */}
+      {showCompanyFilter && tenants.length > 0 && (
+        <FilterSelect
+          value={company}
+          onChange={(v) => handleSelect("company", v)}
+          options={companyOptions}
+          active={!!company}
+        />
+      )}
+
       {/* Job Status */}
-      <div className="relative shrink-0">
-        <select value={status} onChange={(e) => handleSelect("status", e.target.value)} className={selectCls(!!status)}>
-          {JOB_STATUS_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          ))}
-        </select>
-        <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2">
-          <svg className={`w-3.5 h-3.5 ${status ? "text-white" : "text-gray-400"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
-        </div>
-      </div>
+      <FilterSelect
+        value={status}
+        onChange={(v) => handleSelect("status", v)}
+        options={JOB_STATUS_OPTIONS}
+        active={!!status}
+      />
 
       {/* Quote Status */}
-      <div className="relative shrink-0">
-        <select value={quoteStatus} onChange={(e) => handleSelect("quoteStatus", e.target.value)} className={selectCls(!!quoteStatus)}>
-          {QUOTE_STATUS_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          ))}
-        </select>
-        <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2">
-          <svg className={`w-3.5 h-3.5 ${quoteStatus ? "text-white" : "text-gray-400"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
-        </div>
-      </div>
+      <FilterSelect
+        value={quoteStatus}
+        onChange={(v) => handleSelect("quoteStatus", v)}
+        options={QUOTE_STATUS_OPTIONS}
+        active={!!quoteStatus}
+      />
 
       {/* Priority */}
-      <div className="relative shrink-0">
-        <select value={priority} onChange={(e) => handleSelect("priority", e.target.value)} className={selectCls(!!priority)}>
-          {PRIORITY_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          ))}
-        </select>
-        <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2">
-          <svg className={`w-3.5 h-3.5 ${priority ? "text-white" : "text-gray-400"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
-        </div>
-      </div>
+      <FilterSelect
+        value={priority}
+        onChange={(v) => handleSelect("priority", v)}
+        options={PRIORITY_OPTIONS}
+        active={!!priority}
+      />
 
-      <button
-        onClick={() => handleSelect("priority", priority === "high" ? "" : "high")}
-        className={`shrink-0 px-3 py-2 text-sm rounded-xl border font-medium transition-all ${
-          priority === "high"
-            ? "bg-red-600 text-white border-red-600"
-            : "bg-white border-gray-200 text-gray-700 hover:border-red-300"
-        }`}
-      >
-        High Priority
-      </button>
-      <button
-        onClick={() => handleSelect("priority", priority === "medium" ? "" : "medium")}
-        className={`shrink-0 px-3 py-2 text-sm rounded-xl border font-medium transition-all ${
-          priority === "medium"
-            ? "bg-yellow-500 text-white border-yellow-500"
-            : "bg-white border-gray-200 text-gray-700 hover:border-yellow-300"
-        }`}
-      >
-        Medium
-      </button>
-      <button
-        onClick={() => handleSelect("priority", priority === "low" ? "" : "low")}
-        className={`shrink-0 px-3 py-2 text-sm rounded-xl border font-medium transition-all ${
-          priority === "low"
-            ? "bg-green-600 text-white border-green-600"
-            : "bg-white border-gray-200 text-gray-700 hover:border-green-300"
-        }`}
-      >
-        Low
-      </button>
-
-      {/* Inspection toggle pill */}
-      <button
-        onClick={() => handleSelect("inspectionRequired", inspectionRequired === "true" ? "" : "true")}
-        className={`shrink-0 px-3 py-2 text-sm rounded-xl border font-medium transition-all ${
-          inspectionRequired === "true"
-            ? "bg-purple-600 text-white border-purple-600"
-            : "bg-white border-gray-200 text-gray-700 hover:border-purple-300"
-        }`}
-      >
-        Needs Inspection
-      </button>
-
-      {/* Unpaid toggle pill */}
-      <button
-        onClick={() => handleSelect("paymentStatus", paymentStatus === "unpaid" ? "" : "unpaid")}
-        className={`shrink-0 px-3 py-2 text-sm rounded-xl border font-medium transition-all ${
-          paymentStatus === "unpaid"
-            ? "bg-orange-500 text-white border-orange-500"
-            : "bg-white border-gray-200 text-gray-700 hover:border-orange-300"
-        }`}
-      >
-        Unpaid
-      </button>
+      {/* Quick-toggle pills */}
+      <button onClick={() => toggle("priority", "high", priority)} className={pillCls(priority === "high", "bg-red-600")}>High Priority</button>
+      <button onClick={() => toggle("priority", "medium", priority)} className={pillCls(priority === "medium", "bg-yellow-500")}>Medium</button>
+      <button onClick={() => toggle("priority", "low", priority)} className={pillCls(priority === "low", "bg-green-600")}>Low</button>
+      <button onClick={() => toggle("inspectionRequired", "true", inspectionRequired)} className={pillCls(inspectionRequired === "true", "bg-purple-600")}>Needs Inspection</button>
+      <button onClick={() => toggle("paymentStatus", "unpaid", paymentStatus)} className={pillCls(paymentStatus === "unpaid", "bg-orange-500")}>Unpaid</button>
 
       {activeCount > 0 && (
-        <button
-          onClick={() => router.push("/jobs")}
-          className="px-3 py-2 text-sm text-red-500 hover:text-red-700 font-medium"
-        >
+        <button onClick={() => router.push("/jobs")} className="px-3 py-2 text-sm text-red-500 hover:text-red-700 font-medium">
           Clear ({activeCount})
         </button>
       )}

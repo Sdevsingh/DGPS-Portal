@@ -1,17 +1,28 @@
-import { appendRow, findRow } from "@/lib/sheets";
+import { supabaseAdmin } from "./supabase-server";
+import { formatThread } from "./db";
 
 export async function ensureChatThreadForJob(jobId: string, tenantId: string) {
-  const existing = await findRow("ChatThreads", (r) => r.jobId === jobId);
-  if (existing) return existing;
+  const { data: existing } = await supabaseAdmin
+    .from("chat_threads")
+    .select("*")
+    .eq("job_id", jobId)
+    .single();
 
-  return appendRow("ChatThreads", {
-    tenantId,
-    jobId,
-    pendingOn: "none",
-    lastMessage: "",
-    lastMessageAt: "",
-    lastMessageBy: "",
-    lastResponseTime: "",
-    responseDueTime: "",
-  });
+  if (existing) return formatThread(existing);
+
+  const { data: created, error } = await supabaseAdmin
+    .from("chat_threads")
+    .insert({
+      tenant_id: tenantId,
+      job_id: jobId,
+      pending_on: "none",
+      last_message: null,
+      last_message_at: null,
+      last_message_by: null,
+    })
+    .select()
+    .single();
+
+  if (error || !created) throw new Error("Failed to create chat thread");
+  return formatThread(created);
 }
