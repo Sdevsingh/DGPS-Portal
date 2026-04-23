@@ -107,7 +107,7 @@ export async function GET(req: NextRequest) {
   return new NextResponse(buf, {
     headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": `attachment; filename="DGPS-OPS-REPORT-${new Date().toLocaleDateString("en-AU").replace(/\//g, "-")}.xlsx"`,
+      "Content-Disposition": `attachment; filename="MAINTENR-OPS-REPORT-${new Date().toLocaleDateString("en-AU").replace(/\//g, "-")}.xlsx"`,
     },
   });
 }

@@ -139,7 +139,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         : "";
 
       const emailResult = await resend.emails.send({
-        from: `DGPS Portal <${process.env.RESEND_FROM ?? "noreply@dgps.com.au"}>`,
+        from: `Maintenr <${process.env.RESEND_FROM ?? "noreply@maintenr.com.au"}>`,
         replyTo: process.env.RESEND_REPLY_TO,
         to: recipient,
         subject: `Quote Ready — ${job.job_number} | $${total.toFixed(2)} incl. GST`,
@@ -188,7 +188,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
               </div>
 
               <div style="padding:16px 28px;border-top:1px solid #f3f4f6;background:#f9fafb;">
-                <p style="font-size:11px;color:#9ca3af;margin:0;">This notification was sent automatically by the DGPS Portal when your job received a quote.</p>
+                <p style="font-size:11px;color:#9ca3af;margin:0;">This notification was sent automatically by Maintenr when your job received a quote.</p>
               </div>
             </div>
           </div>

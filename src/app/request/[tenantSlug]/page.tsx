@@ -176,7 +176,7 @@ function StepIndicator({ step }: { step: 1 | 2 }) {
   );
 }
 
-// ─── DGPS Hero Panel ──────────────────────────────────────────────────────────
+// ─── Hero Panel ───────────────────────────────────────────────────────────────
 
 const SERVICES = [
   { icon: "🔧", label: "Plumbing Repair & Maintenance" },
@@ -201,14 +201,9 @@ function DGPSHeroPanel() {
       <div className="relative">
         {/* Logo */}
         <div className="flex items-center gap-3 mb-10">
-          <div className="w-10 h-10 bg-white/10 border border-white/20 rounded-xl flex items-center justify-center">
-            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-            </svg>
-          </div>
-          <div>
-            <p className="text-white font-bold leading-tight">Domain Group</p>
-            <p className="text-blue-300 text-xs">Property Services</p>
+          <div className="bg-white rounded-xl px-3 py-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/Maintenr.png" alt="Maintenr" className="h-10 w-auto object-contain" />
           </div>
         </div>
 
@@ -217,7 +212,7 @@ function DGPSHeroPanel() {
           <span className="text-blue-300">from our team.</span>
         </h1>
         <p className="text-slate-400 text-sm leading-relaxed mb-8">
-          Melbourne-based property maintenance specialists. Background-checked, certified tradespeople available 24/7.
+          Property maintenance specialists. Background-checked, certified tradespeople available 24/7.
         </p>
 
         <div className="space-y-2.5">
@@ -234,12 +229,11 @@ function DGPSHeroPanel() {
         <div className="p-4 bg-white/5 border border-white/10 rounded-xl">
           <p className="text-xs font-semibold text-blue-300 uppercase tracking-wide mb-2">Contact Us</p>
           <div className="space-y-1.5 text-sm text-slate-300">
-            <p>📍 Unit 7, 1 Leader Street, Truganina VIC 3029</p>
-            <p>🌐 dgps.com.au</p>
+            <p>🌐 maintenr.com.au</p>
             <p>🕐 Available 24/7</p>
           </div>
         </div>
-        <p className="text-slate-600 text-xs">© 2025 Domain Group Property Services Pty Ltd · ABN 92 603 456 275</p>
+        <p className="text-slate-600 text-xs">© 2026 Maintenr</p>
       </div>
     </div>
   );
@@ -784,7 +778,7 @@ export default function PublicRequestPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
               </svg>
             </div>
-            <h2 className="font-bold text-xl text-gray-900">Domain Group Property Services</h2>
+            <h2 className="font-bold text-xl text-gray-900">Maintenr</h2>
           </div>
 
           <div className="mb-5">

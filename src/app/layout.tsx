@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Domain Group — Operations Platform",
+  title: "Maintenr — Property Maintenance Platform",
   description: "Property maintenance operations management platform",
 };
 

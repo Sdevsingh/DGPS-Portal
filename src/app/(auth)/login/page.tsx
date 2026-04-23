@@ -162,9 +162,9 @@ function LoginPageInner() {
             transition={{ duration: 0.3, ease: "easeOut" }}
           >
             <img
-              src="/Logo.jpeg"
-              alt="Domain Group Property Services"
-              className="h-9 w-auto object-contain rounded-lg"
+              src="/Maintenr.png"
+              alt="Maintenr"
+              className="h-14 w-auto object-contain"
               style={{ mixBlendMode: "multiply" }}
             />
           </motion.div>
@@ -192,7 +192,7 @@ function LoginPageInner() {
           </div>
         </div>
 
-        <p className="text-blue-300 text-sm">© 2026 Domain Group Property Services</p>
+        <p className="text-blue-300 text-sm">© 2026 Maintenr</p>
       </div>
 
       {/* Right panel - form */}
@@ -205,7 +205,7 @@ function LoginPageInner() {
           {/* Mobile logo */}
           <div className="lg:hidden flex justify-center mb-8">
             <div className="flex items-center rounded-2xl px-5 py-3 border border-gray-800 bg-gray-900">
-              <img src="/Logo.jpeg" alt="Domain Group Property Services" className="h-9 w-auto object-contain" />
+              <img src="/Maintenr.png" alt="Maintenr" className="h-12 w-auto object-contain" />
             </div>
           </div>
 
@@ -271,7 +271,7 @@ function LoginPageInner() {
                 value={tenantSlug}
                 onChange={(e) => setTenantSlug(e.target.value)}
                 className="w-full px-4 py-3.5 bg-gray-900/80 border border-gray-800 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500/60 focus:border-blue-500/50 text-sm transition-all"
-                placeholder="e.g. metro-maintenance or dgps"
+                placeholder="e.g. metro-maintenance"
               />
               <p className="text-[11px] text-gray-600 mt-1.5">
                 Only required if the same email is used in more than one company.

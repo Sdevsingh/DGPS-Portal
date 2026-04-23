@@ -16,9 +16,9 @@ export default function ClientTopNav() {
             <div className="logo-glow-sm absolute -inset-2 bg-indigo-200/30 rounded-full blur-md pointer-events-none" style={{ animationDelay: "0.5s" }} />
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/Logo.jpeg"
-              alt="Domain Group"
-              className="relative h-7 w-auto object-contain drop-shadow-[0_0_6px_rgba(96,165,250,0.3)]"
+              src="/Maintenr.png"
+              alt="Maintenr"
+              className="relative h-8 w-auto object-contain"
             />
           </div>
         </Link>

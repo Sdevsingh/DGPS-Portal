@@ -216,7 +216,7 @@ export async function POST(req: NextRequest) {
     try {
       const portalUrl = `${process.env.NEXTAUTH_URL ?? "https://dgps-portal.netlify.app"}/login?callbackUrl=/jobs/${job.id}`;
       const emailResult = await resend.emails.send({
-        from: `DGPS Portal <${process.env.RESEND_FROM ?? "noreply@dgps.com.au"}>`,
+        from: `Maintenr <${process.env.RESEND_FROM ?? "noreply@maintenr.com.au"}>`,
         replyTo: process.env.RESEND_REPLY_TO,
         to: NOTIFY_EMAIL,
         subject: `New Client Request — ${jobNumber} | ${body.propertyAddress ?? ""}`,
@@ -268,7 +268,7 @@ export async function POST(req: NextRequest) {
               </div>
 
               <div style="padding:16px 28px;border-top:1px solid #f3f4f6;background:#f9fafb;">
-                <p style="font-size:11px;color:#9ca3af;margin:0;">This notification was sent automatically by the DGPS Portal when a client submitted a new service request.</p>
+                <p style="font-size:11px;color:#9ca3af;margin:0;">This notification was sent automatically by Maintenr when a client submitted a new service request.</p>
               </div>
             </div>
           </div>

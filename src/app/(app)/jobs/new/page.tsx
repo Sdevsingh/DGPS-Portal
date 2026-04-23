@@ -323,7 +323,7 @@ export default function NewJobPage() {
                     onChange={(e) => { setAgentEmail(e.target.value); clearErr("agentEmail"); }}
                     onBlur={() => { const err = validateEmail(agentEmail); err ? setErr("agentEmail", err) : clearErr("agentEmail"); }}
                     className={`${inputCls} ${errors.agentEmail ? "border-red-400 focus:ring-red-400" : ""}`}
-                    placeholder="john.smith@dgps.com.au"
+                    placeholder="john.smith@company.com.au"
                   />
                   {errors.agentEmail && <p className="mt-1 text-xs text-red-500">{errors.agentEmail}</p>}
                 </div>

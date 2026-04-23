@@ -147,18 +147,20 @@ export default function Sidebar() {
           <div className="relative inline-flex items-center justify-center">
             <div className="logo-glow absolute -inset-5 bg-blue-500/20 rounded-full blur-2xl pointer-events-none" />
             <div className="logo-glow-sm absolute -inset-2 bg-indigo-400/15 rounded-full blur-lg pointer-events-none" style={{ animationDelay: "0.5s" }} />
-            <Image
-              src="/Logo.jpeg"
-              alt="Domain Group Property Services"
-              width={120}
-              height={32}
-              className="relative h-8 w-auto object-contain drop-shadow-[0_0_8px_rgba(96,165,250,0.45)]"
-              priority
-            />
+            <div className="relative bg-white rounded-xl p-1.5">
+              <Image
+                src="/Maintenr.png"
+                alt="Maintenr"
+                width={120}
+                height={40}
+                className="h-10 w-auto object-contain"
+                priority
+              />
+            </div>
           </div>
         </div>
         <p className="text-[10px] text-gray-500 mt-1.5 font-medium uppercase tracking-wider pl-0.5">
-          Operations Platform
+          Maintenr
         </p>
       </div>
 

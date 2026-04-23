@@ -61,11 +61,13 @@ export default function MobileNav() {
           <div className="logo-glow absolute -inset-4 bg-blue-500/20 rounded-full blur-xl pointer-events-none" />
           <div className="logo-glow-sm absolute -inset-2 bg-indigo-400/15 rounded-full blur-md pointer-events-none" style={{ animationDelay: "0.5s" }} />
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/Logo.jpeg"
-            alt="Domain Group"
-            className="relative h-7 w-auto object-contain drop-shadow-[0_0_8px_rgba(96,165,250,0.45)]"
-          />
+          <div className="relative bg-white rounded-lg px-2 py-1">
+            <img
+              src="/Maintenr.png"
+              alt="Maintenr"
+              className="h-7 w-auto object-contain"
+            />
+          </div>
         </div>
         <button
           onClick={() => setOpen(true)}
@@ -92,11 +94,13 @@ export default function MobileNav() {
                 <div className="logo-glow absolute -inset-4 bg-blue-500/20 rounded-full blur-xl pointer-events-none" />
                 <div className="logo-glow-sm absolute -inset-2 bg-indigo-400/15 rounded-full blur-md pointer-events-none" style={{ animationDelay: "0.5s" }} />
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="/Logo.jpeg"
-                  alt="Domain Group"
-                  className="relative h-7 w-auto object-contain drop-shadow-[0_0_8px_rgba(96,165,250,0.45)]"
-                />
+                <div className="bg-white rounded-lg px-2 py-1">
+                  <img
+                    src="/Maintenr.png"
+                    alt="Maintenr"
+                    className="h-7 w-auto object-contain"
+                  />
+                </div>
               </div>
               <button
                 onClick={() => setOpen(false)}

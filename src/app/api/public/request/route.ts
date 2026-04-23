@@ -182,7 +182,7 @@ export async function POST(req: NextRequest) {
   try {
     const portalUrl = `${baseUrl}/login?callbackUrl=/jobs/${job.id}`;
     const opsEmail = await resend.emails.send({
-      from: `DGPS Portal <${process.env.RESEND_FROM ?? "noreply@dgps.com.au"}>`,
+      from: `Maintenr <${process.env.RESEND_FROM ?? "noreply@maintenr.com.au"}>`,
       replyTo: process.env.RESEND_REPLY_TO,
       to: NOTIFY_EMAIL,
       subject: `New Client Request — ${jobNumber} | ${propertyAddress}`,
@@ -221,7 +221,7 @@ export async function POST(req: NextRequest) {
             </div>
 
             <div style="padding:16px 28px;border-top:1px solid #f3f4f6;background:#f9fafb;">
-              <p style="font-size:11px;color:#9ca3af;margin:0;">This notification was sent automatically by the DGPS Portal when a client submitted a new service request via the public form.</p>
+              <p style="font-size:11px;color:#9ca3af;margin:0;">This notification was sent automatically by Maintenr when a client submitted a new service request via the public form.</p>
             </div>
           </div>
         </div>
@@ -236,16 +236,16 @@ export async function POST(req: NextRequest) {
   if (isNewClient) {
     try {
       const welcomeEmail = await resend.emails.send({
-        from: `Domain Group Property Services <${process.env.RESEND_FROM ?? "noreply@dgps.com.au"}>`,
+        from: `Maintenr <${process.env.RESEND_FROM ?? "noreply@maintenr.com.au"}>`,
         replyTo: process.env.RESEND_REPLY_TO,
         to: normalizedEmail,
-        subject: `Your DGPS Portal account is ready — Job ${jobNumber} received`,
+        subject: `Your Maintenr account is ready — Job ${jobNumber} received`,
         html: `
           <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px 24px;background:#f9fafb;">
             <div style="background:#fff;border-radius:16px;padding:32px;border:1px solid #e5e7eb;">
               <div style="margin-bottom:24px;">
-                <h1 style="font-size:18px;font-weight:800;color:#1e3a5f;margin:0;">Domain Group</h1>
-                <p style="font-size:12px;color:#6b7280;margin:2px 0 0;">Property Services Portal</p>
+                <h1 style="font-size:18px;font-weight:800;color:#1e3a5f;margin:0;">Maintenr</h1>
+                <p style="font-size:12px;color:#6b7280;margin:2px 0 0;">Property Maintenance Platform</p>
               </div>
 
               <h2 style="font-size:20px;font-weight:700;color:#111827;margin-bottom:8px;">Welcome, ${name}</h2>

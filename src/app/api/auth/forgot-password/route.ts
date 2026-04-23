@@ -41,20 +41,20 @@ export async function POST(req: NextRequest) {
   const toEmail = process.env.RESEND_TEST_EMAIL ?? user.email;
 
   const { error } = await resend.emails.send({
-    from: `Domain Group Property Services <${process.env.RESEND_FROM ?? "noreply@dgps.com.au"}>`,
+    from: `Maintenr <${process.env.RESEND_FROM ?? "noreply@maintenr.com.au"}>`,
     replyTo: process.env.RESEND_REPLY_TO,
     to: toEmail,
-    subject: "Reset your DGPS portal password",
+    subject: "Reset your Maintenr password",
     html: `
       <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#f9fafb;">
         <div style="background:#fff;border-radius:16px;padding:32px;border:1px solid #e5e7eb;">
           <div style="margin-bottom:24px;">
-            <h1 style="font-size:18px;font-weight:800;color:#1e3a5f;margin:0;">Domain Group</h1>
-            <p style="font-size:12px;color:#6b7280;margin:2px 0 0;">Property Services Portal</p>
+            <h1 style="font-size:18px;font-weight:800;color:#1e3a5f;margin:0;">Maintenr</h1>
+            <p style="font-size:12px;color:#6b7280;margin:2px 0 0;">Property Maintenance Platform</p>
           </div>
           <h2 style="font-size:20px;font-weight:700;color:#111827;margin-bottom:8px;">Reset your password</h2>
           <p style="color:#6b7280;font-size:14px;margin-bottom:24px;line-height:1.6;">
-            We received a request to reset the password for your DGPS portal account. Click the button below to set a new password. This link expires in <strong>1 hour</strong>.
+            We received a request to reset the password for your Maintenr account. Click the button below to set a new password. This link expires in <strong>1 hour</strong>.
           </p>
           <a href="${resetUrl}" style="display:inline-block;background:#2563eb;color:#fff;font-weight:600;font-size:14px;padding:12px 28px;border-radius:10px;text-decoration:none;">
             Reset Password
